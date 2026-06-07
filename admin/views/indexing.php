@@ -136,8 +136,8 @@ foreach ( $configured_types as $pt ) {
 			<p>
 				<?php
 				printf(
-					/* translators: %d: number of failed queue items */
 					esc_html(
+						/* translators: %d: number of failed queue items */
 						_n(
 							'%d post failed to index after 3 attempts. Starting a full re-index will retry these posts.',
 							'%d posts failed to index after 3 attempts. Starting a full re-index will retry these posts.',

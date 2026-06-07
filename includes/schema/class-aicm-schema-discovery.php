@@ -340,7 +340,7 @@ class AICM_Schema_Discovery {
 	private static function get_raw_meta_keys( string $pt_name ): array {
 		global $wpdb;
 
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names are from $wpdb properties, not user input.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery -- table names are from $wpdb properties; the NOT LIKE pattern is a fixed literal (excludes underscore-prefixed keys), not user input.
 		$raw_keys = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT DISTINCT pm.meta_key

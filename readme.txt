@@ -3,12 +3,12 @@ Contributors:      sungraizfaryad
 Tags:              ai, site-search, chatbot, openai, search
 Requires at least: 6.0
 Tested up to:      7.0
-Stable tag:        1.0.0
+Stable tag:        2.0.0
 Requires PHP:      8.0
 License:           GPLv2 or later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 
-AI site assistant that answers visitor questions by searching your own content. Natural-language search over your posts, listings, and products. Uses your OpenAI API key.
+AI site assistant that turns visitor questions into a safe search of your own content. Bring your own OpenAI key.
 
 == Description ==
 

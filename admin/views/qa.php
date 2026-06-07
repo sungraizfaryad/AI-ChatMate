@@ -49,8 +49,8 @@ if ( ! current_user_can( 'manage_options' ) ) {
 		<p>
 			<?php
 			printf(
-				/* translators: %s: link to Settings page */
 				wp_kses(
+					/* translators: %s: link to the Settings page */
 					__( 'No API key is configured. Q&A pairs cannot be embedded for matching until an API key is added on the <a href="%s">Settings page</a>.', 'ai-chatmate' ),
 					array( 'a' => array( 'href' => array() ) )
 				),
