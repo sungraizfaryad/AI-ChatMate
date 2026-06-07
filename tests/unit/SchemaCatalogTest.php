@@ -58,4 +58,13 @@ final class SchemaCatalogTest extends TestCase {
 		$this->assertStringContainsString( 'more', $block ); // notes the truncation
 		$this->assertStringNotContainsString( 'term99', $block );
 	}
+
+	public function test_function_hints_expose_present_types_and_slugs(): void {
+		$hints = AICM_Schema_Catalog::function_hints( $this->schema(), array( 'listing', 'post' ) );
+
+		$this->assertSame( array( 'listing', 'post' ), $hints['post_types'] );
+		$this->assertStringContainsString( 'location(lisbon,porto,algarve)', $hints['taxonomy_hint'] );
+		$this->assertStringContainsString( 'price(numeric)', $hints['meta_hint'] );
+		$this->assertStringContainsString( 'has_pool(boolean)', $hints['meta_hint'] );
+	}
 }
