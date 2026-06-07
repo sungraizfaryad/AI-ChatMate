@@ -1,0 +1,14 @@
+.aicm-wizard-steps { display:flex; gap:0; list-style:none; margin:20px 0 24px; padding:0; max-width:900px; }
+.aicm-wizard-step { flex:1; display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:3px solid #dcdcde; color:#646970; }
+.aicm-wizard-step.is-active { border-bottom-color:#2271b1; color:#1d2327; font-weight:600; }
+.aicm-wizard-step.is-done { border-bottom-color:#2271b1; }
+.aicm-wizard-num { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#dcdcde; color:#1d2327; font-size:12px; }
+.aicm-wizard-step.is-active .aicm-wizard-num, .aicm-wizard-step.is-done .aicm-wizard-num { background:#2271b1; color:#fff; }
+.aicm-panel { display:none; max-width:760px; background:#fff; border:1px solid #c3c4c7; padding:16px 20px; margin-bottom:16px; }
+.aicm-panel.is-active { display:block; }
+.aicm-detect-types, .aicm-detect-result { margin:8px 0; }
+.aicm-detect-types li { margin:2px 0; }
+.aicm-test-result { margin-left:10px; font-weight:600; }
+.aicm-test-ok { color:#46b450; }
+.aicm-test-fail { color:#dc3232; }
+.aicm-save-status { margin-left:10px; font-style:italic; color:#555; }

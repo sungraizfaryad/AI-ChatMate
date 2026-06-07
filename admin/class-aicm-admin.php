@@ -163,6 +163,28 @@ class AICM_Admin {
 			),
 			'before'
 		);
+
+		// Wizard assets — only on the top-level page (where the wizard renders).
+		if ( str_contains( $hook_suffix, 'toplevel_page_' . self::MENU_SLUG ) ) {
+			wp_enqueue_style(
+				'aicm-wizard',
+				AICM_PLUGIN_URL . 'admin/css/aicm-wizard.css',
+				array(),
+				AICM_VERSION
+			);
+			wp_enqueue_script(
+				'aicm-wizard',
+				AICM_PLUGIN_URL . 'admin/js/aicm-wizard.js',
+				array( 'wp-api' ),
+				AICM_VERSION,
+				true
+			);
+			wp_add_inline_script(
+				'wp-api',
+				sprintf( 'aicmAdmin.settingsUrl = %s;', wp_json_encode( admin_url( 'admin.php?page=' . self::MENU_SLUG ) ) ),
+				'after'
+			);
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -178,6 +200,14 @@ class AICM_Admin {
 	public function render_settings_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'ai-chatmate' ) );
+		}
+
+		// First-run (or ?onboarding=1): show the setup wizard instead of settings.
+		// This is a read-only view toggle, no state change, so no nonce is needed.
+		$force_wizard = isset( $_GET['onboarding'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view toggle.
+		if ( $force_wizard || ! AICM_Onboarding::is_complete() ) {
+			include AICM_PLUGIN_DIR . 'admin/views/onboarding.php';
+			return;
 		}
 
 		include AICM_PLUGIN_DIR . 'admin/views/settings.php';
