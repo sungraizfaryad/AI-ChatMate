@@ -1,0 +1,358 @@
+/*
+ * AI ChatMate — Widget Styles
+ *
+ * All selectors are prefixed .aicm- to avoid collisions with the host theme.
+ * The brand colour is injected at runtime via wp_add_inline_style():
+ *   :root { --aicm-color: #xxxxxx; }
+ * This file provides the fallback value (#0073aa — WordPress blue).
+ *
+ * Structure:
+ *  .aicm-launcher          — floating action button (always visible)
+ *  .aicm-widget            — chat panel (hidden until .is-open added by JS)
+ *  .aicm-widget__header    — coloured title bar + close button
+ *  .aicm-widget__messages  — scrollable messages list
+ *  .aicm-msg               — single message row (--user | --bot)
+ *  .aicm-msg__bubble       — text bubble
+ *  .aicm-msg__sources      — source link chips below a bot message
+ *  .aicm-widget__footer    — textarea + send button
+ */
+
+/* ── CSS custom properties ───────────────────────────────────────────────── */
+:root {
+	--aicm-color:         #0073aa; /* brand colour — overridden inline */
+	--aicm-bg:            #ffffff;
+	--aicm-border:        #dcdcde;
+	--aicm-user-bubble:   var(--aicm-color);
+	--aicm-user-text:     #ffffff;
+	--aicm-bot-bubble:    #f0f0f1;
+	--aicm-bot-text:      #1d2327;
+	--aicm-header-text:   #ffffff;
+	--aicm-radius-lg:     16px;
+	--aicm-radius-sm:     8px;
+	--aicm-shadow:        0 8px 32px rgba(0, 0, 0, 0.22);
+	--aicm-z:             999999;
+	--aicm-launcher-size: 56px;
+	--aicm-panel-width:   360px;
+	--aicm-panel-height:  520px;
+}
+
+/* ── Launcher button ─────────────────────────────────────────────────────── */
+.aicm-launcher {
+	position:        fixed;
+	bottom:          24px;
+	right:           24px;
+	z-index:         var(--aicm-z);
+	width:           var(--aicm-launcher-size);
+	height:          var(--aicm-launcher-size);
+	border-radius:   50%;
+	background:      var(--aicm-color);
+	color:           var(--aicm-header-text);
+	border:          none;
+	cursor:          pointer;
+	display:         flex;
+	align-items:     center;
+	justify-content: center;
+	box-shadow:      var(--aicm-shadow);
+	transition:      filter 0.2s, transform 0.15s;
+	/* Ensure the button always floats above page content. */
+	-webkit-tap-highlight-color: transparent;
+}
+
+.aicm-launcher:hover {
+	filter:    brightness(0.87);
+	transform: scale(1.06);
+}
+
+.aicm-launcher:active {
+	transform: scale(0.97);
+}
+
+.aicm-launcher:focus-visible {
+	outline:        2px solid var(--aicm-color);
+	outline-offset: 3px;
+}
+
+/* ── Widget panel ────────────────────────────────────────────────────────── */
+.aicm-widget {
+	position:       fixed;
+	bottom:         calc(var(--aicm-launcher-size) + 16px);
+	right:          24px;
+	z-index:        var(--aicm-z);
+	width:          var(--aicm-panel-width);
+	max-width:      calc(100vw - 32px);
+	height:         var(--aicm-panel-height);
+	max-height:     calc(100vh - 110px);
+	border-radius:  var(--aicm-radius-lg);
+	background:     var(--aicm-bg);
+	box-shadow:     var(--aicm-shadow);
+	border:         1px solid var(--aicm-border);
+	/* Hidden by default — JS adds .is-open */
+	display:        none;
+	flex-direction: column;
+	overflow:       hidden;
+	transform-origin: bottom right;
+}
+
+.aicm-widget.is-open {
+	display:   flex;
+	animation: aicm-slide-up 0.2s ease-out both;
+}
+
+@keyframes aicm-slide-up {
+	from { opacity: 0; transform: translateY(10px) scale(0.97); }
+	to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.aicm-widget__header {
+	display:         flex;
+	align-items:     center;
+	justify-content: space-between;
+	padding:         13px 16px;
+	background:      var(--aicm-color);
+	color:           var(--aicm-header-text);
+	flex-shrink:     0;
+	gap:             8px;
+}
+
+.aicm-widget__title {
+	font-weight:   600;
+	font-size:     15px;
+	white-space:   nowrap;
+	overflow:      hidden;
+	text-overflow: ellipsis;
+	flex:          1;
+}
+
+.aicm-widget__close {
+	background:    transparent;
+	border:        none;
+	cursor:        pointer;
+	color:         inherit;
+	padding:       4px;
+	line-height:   1;
+	border-radius: var(--aicm-radius-sm);
+	display:       flex;
+	flex-shrink:   0;
+	opacity:       0.85;
+	transition:    opacity 0.15s;
+}
+
+.aicm-widget__close:hover {
+	opacity: 1;
+}
+
+.aicm-widget__close:focus-visible {
+	outline: 2px solid rgba(255, 255, 255, 0.75);
+}
+
+/* ── Messages area ───────────────────────────────────────────────────────── */
+.aicm-widget__messages {
+	flex:            1;
+	overflow-y:      auto;
+	padding:         14px 12px;
+	display:         flex;
+	flex-direction:  column;
+	gap:             10px;
+	scroll-behavior: smooth;
+}
+
+/* Thin scrollbar — Webkit */
+.aicm-widget__messages::-webkit-scrollbar       { width: 4px; }
+.aicm-widget__messages::-webkit-scrollbar-track  { background: transparent; }
+.aicm-widget__messages::-webkit-scrollbar-thumb  {
+	background:    var(--aicm-border);
+	border-radius: 2px;
+}
+
+/* ── Message rows ────────────────────────────────────────────────────────── */
+.aicm-msg {
+	display:        flex;
+	flex-direction: column;
+	max-width:      85%;
+	/* Animation for each incoming message */
+	animation:      aicm-msg-in 0.18s ease-out both;
+}
+
+@keyframes aicm-msg-in {
+	from { opacity: 0; transform: translateY(6px); }
+	to   { opacity: 1; transform: translateY(0);   }
+}
+
+.aicm-msg--user {
+	align-self:  flex-end;
+	align-items: flex-end;
+}
+
+.aicm-msg--bot {
+	align-self:  flex-start;
+	align-items: flex-start;
+}
+
+/* ── Message bubbles ─────────────────────────────────────────────────────── */
+.aicm-msg__bubble {
+	padding:       10px 13px;
+	border-radius: var(--aicm-radius-lg);
+	font-size:     14px;
+	line-height:   1.55;
+	word-break:    break-word;
+}
+
+.aicm-msg--user .aicm-msg__bubble {
+	background:                var(--aicm-user-bubble);
+	color:                     var(--aicm-user-text);
+	border-bottom-right-radius: 4px;
+}
+
+.aicm-msg--bot .aicm-msg__bubble {
+	background:               var(--aicm-bot-bubble);
+	color:                    var(--aicm-bot-text);
+	border-bottom-left-radius: 4px;
+}
+
+/* Inline formatting rendered by JS formatText() */
+.aicm-msg__bubble strong { font-weight: 600; }
+.aicm-msg__bubble br     { display: block; margin-bottom: 2px; }
+
+/* ── Typing indicator ────────────────────────────────────────────────────── */
+.aicm-msg--typing .aicm-msg__bubble {
+	padding: 12px 14px;
+}
+
+.aicm-msg--typing .aicm-msg__bubble span {
+	display:       inline-block;
+	width:         7px;
+	height:        7px;
+	border-radius: 50%;
+	background:    var(--aicm-color);
+	margin:        0 2px;
+	animation:     aicm-bounce 1.3s infinite ease-in-out;
+	vertical-align: middle;
+	opacity:       0.7;
+}
+
+.aicm-msg--typing .aicm-msg__bubble span:nth-child(2) { animation-delay: 0.22s; }
+.aicm-msg--typing .aicm-msg__bubble span:nth-child(3) { animation-delay: 0.44s; }
+
+@keyframes aicm-bounce {
+	0%, 80%, 100% { transform: scale(0.65); opacity: 0.45; }
+	40%           { transform: scale(1);    opacity: 1;    }
+}
+
+/* ── Source link chips ───────────────────────────────────────────────────── */
+.aicm-msg__sources {
+	margin-top: 6px;
+	display:    flex;
+	flex-wrap:  wrap;
+	gap:        5px;
+}
+
+.aicm-msg__sources a {
+	font-size:       11px;
+	color:           var(--aicm-color);
+	text-decoration: none;
+	background:      rgba(0, 115, 170, 0.07);
+	padding:         3px 8px;
+	border-radius:   12px;
+	border:          1px solid rgba(0, 115, 170, 0.18);
+	white-space:     nowrap;
+	overflow:        hidden;
+	text-overflow:   ellipsis;
+	max-width:       210px;
+	transition:      background 0.15s;
+}
+
+.aicm-msg__sources a:hover {
+	background:      rgba(0, 115, 170, 0.14);
+	text-decoration: underline;
+}
+
+/* ── Footer / Input row ──────────────────────────────────────────────────── */
+.aicm-widget__footer {
+	display:      flex;
+	align-items:  flex-end;
+	gap:          8px;
+	padding:      10px 12px;
+	border-top:   1px solid var(--aicm-border);
+	flex-shrink:  0;
+	background:   var(--aicm-bg);
+}
+
+.aicm-widget__input {
+	flex:          1;
+	resize:        none;
+	border:        1px solid var(--aicm-border);
+	border-radius: var(--aicm-radius-sm);
+	padding:       8px 10px;
+	font-size:     14px;
+	font-family:   inherit;
+	line-height:   1.45;
+	min-height:    36px;
+	max-height:    120px;
+	overflow-y:    auto;
+	outline:       none;
+	color:         var(--aicm-bot-text);
+	background:    var(--aicm-bg);
+	transition:    border-color 0.15s;
+}
+
+.aicm-widget__input:focus {
+	border-color: var(--aicm-color);
+}
+
+.aicm-widget__input::placeholder {
+	color:   #8c8f94;
+	opacity: 1;
+}
+
+.aicm-widget__send {
+	width:           36px;
+	height:          36px;
+	flex-shrink:     0;
+	border-radius:   50%;
+	background:      var(--aicm-color);
+	color:           var(--aicm-header-text);
+	border:          none;
+	cursor:          pointer;
+	display:         flex;
+	align-items:     center;
+	justify-content: center;
+	transition:      filter 0.15s, opacity 0.15s;
+}
+
+.aicm-widget__send:hover:not(:disabled) {
+	filter: brightness(0.87);
+}
+
+.aicm-widget__send:disabled {
+	opacity: 0.45;
+	cursor:  not-allowed;
+}
+
+.aicm-widget__send:focus-visible {
+	outline:        2px solid var(--aicm-color);
+	outline-offset: 2px;
+}
+
+/* ── Responsive: small screens (≤ 480 px) ───────────────────────────────── */
+@media (max-width: 480px) {
+	.aicm-widget {
+		width:         100%;
+		max-width:     100%;
+		height:        74svh; /* svh falls back to vh on older browsers */
+		height:        74vh;
+		bottom:        0;
+		right:         0;
+		left:          0;
+		border-radius: var(--aicm-radius-lg) var(--aicm-radius-lg) 0 0;
+		border-left:   none;
+		border-right:  none;
+		border-bottom: none;
+		transform-origin: bottom center;
+	}
+
+	.aicm-launcher {
+		bottom: 16px;
+		right:  16px;
+	}
+}
