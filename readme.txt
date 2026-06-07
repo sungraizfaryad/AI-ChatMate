@@ -1,14 +1,14 @@
 === AI ChatMate ===
 Contributors:      sungraizfaryad
-Tags:              ai-chatbot, chatgpt, ai-search, chatbot, openai
+Tags:              ai, site-search, chatbot, openai, search
 Requires at least: 6.0
-Tested up to:      6.7
+Tested up to:      7.0
 Stable tag:        1.0.0
 Requires PHP:      8.0
 License:           GPLv2 or later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 
-AI-powered chatbot that searches your content and answers questions. Finds listings via natural language. Powered by OpenAI, Anthropic, or Google Gemini.
+AI site assistant that answers visitor questions by searching your own content. Natural-language search over your posts, listings, and products. Uses your OpenAI API key.
 
 == Description ==
 
@@ -47,7 +47,7 @@ A visitor says: "What is your return policy?" → AI ChatMate searches your inde
 
 * PHP 8.0 or higher
 * WordPress 6.0 or higher
-* OpenAI API key (Anthropic and Google Gemini support coming soon)
+* OpenAI API key
 
 == Installation ==
 
@@ -90,6 +90,12 @@ Yes. The schema discovery engine automatically detects custom fields from ACF, M
 5. Q&A Manager — add custom question-answer pairs
 
 == Changelog ==
+
+= 2.0.0 =
+* Rebuilt as a structured-search-first site assistant.
+* Natural-language queries are translated into a safe WP_Query over your post types, taxonomies, and custom fields.
+* Embeddings / semantic Q&A is now optional and off by default.
+* Honest provider scope: OpenAI only in this release.
 
 = 1.0.0 =
 * Initial release.

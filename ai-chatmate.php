@@ -2,8 +2,8 @@
 /**
  * Plugin Name: AI ChatMate
  * Plugin URI:  https://wordpress.org/plugins/ai-chatmate/
- * Description: AI-powered chatbot that searches your WordPress content and answers questions. Finds listings, posts, and products via natural language — powered by OpenAI, Anthropic, or Google Gemini.
- * Version:     1.0.0
+ * Description: AI site assistant that turns natural-language questions into a safe search of your own WordPress content: posts, listings, and products by type, taxonomy, and custom field. Uses your OpenAI API key.
+ * Version:     2.0.0-dev
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author:      Sungraiz Faryad
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin version and path constants.
-define( 'AICM_VERSION',       '1.0.0' );
+define( 'AICM_VERSION',       '2.0.0-dev' );
 define( 'AICM_PLUGIN_FILE',   __FILE__ );
 define( 'AICM_PLUGIN_DIR',    plugin_dir_path( __FILE__ ) );
 define( 'AICM_PLUGIN_URL',    plugin_dir_url( __FILE__ ) );
