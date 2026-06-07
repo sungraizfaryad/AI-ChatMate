@@ -342,7 +342,50 @@ $logging         = ! empty( $settings['logging_enabled'] );
 						step="0.01"
 					>
 					<p class="description">
-						<?php echo esc_html__( 'The chat widget is automatically paused when this limit is reached. Set to 0 for unlimited.', 'ai-chatmate' ); ?>
+						<?php echo esc_html__( 'Long-term monthly spend tracking shown on the Analytics page.', 'ai-chatmate' ); ?>
+					</p>
+				</td>
+			</tr>
+
+			<tr>
+				<th scope="row">
+					<label for="aicm-daily-budget">
+						<?php echo esc_html__( 'Daily Budget (USD)', 'ai-chatmate' ); ?>
+					</label>
+				</th>
+				<td>
+					<input
+						type="number"
+						id="aicm-daily-budget"
+						name="daily_budget"
+						class="small-text"
+						value="<?php echo esc_attr( (float) ( $settings['daily_budget'] ?? 0 ) ); ?>"
+						min="0"
+						step="0.01"
+					>
+					<p class="description">
+						<?php echo esc_html__( 'Hard kill-switch: when today\'s API spend reaches this amount, the public chat pauses until tomorrow. Set to 0 for unlimited.', 'ai-chatmate' ); ?>
+					</p>
+				</td>
+			</tr>
+
+			<tr>
+				<th scope="row">
+					<label for="aicm-daily-cap">
+						<?php echo esc_html__( 'Max Messages / Day (per visitor)', 'ai-chatmate' ); ?>
+					</label>
+				</th>
+				<td>
+					<input
+						type="number"
+						id="aicm-daily-cap"
+						name="daily_msg_cap"
+						class="small-text"
+						value="<?php echo esc_attr( (int) ( $settings['daily_msg_cap'] ?? 0 ) ); ?>"
+						min="0"
+					>
+					<p class="description">
+						<?php echo esc_html__( 'Hard per-visitor daily ceiling. Set to 0 for unlimited.', 'ai-chatmate' ); ?>
 					</p>
 				</td>
 			</tr>

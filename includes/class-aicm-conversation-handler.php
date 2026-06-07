@@ -751,15 +751,8 @@ class AICM_Conversation_Handler {
 			return;
 		}
 
-		$month_key  = gmdate( 'Y-m' );
-		$usage_data = get_option( 'aicm_monthly_usage', array() );
-
-		$usage_data[ $month_key ] = round(
-			(float) ( $usage_data[ $month_key ] ?? 0.0 ) + $cost,
-			6
-		);
-
-		update_option( 'aicm_monthly_usage', $usage_data );
+		// Record into both the daily (kill-switch) and monthly (analytics) maps.
+		AICM_Billing::record( $cost );
 	}
 
 	// ── Private: error helper ─────────────────────────────────────────────────
