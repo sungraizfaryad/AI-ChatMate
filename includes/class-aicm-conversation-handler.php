@@ -136,10 +136,19 @@ class AICM_Conversation_Handler {
 			);
 		}
 
-		// ── Step 3: RAG retrieval ─────────────────────────────────────────
-		$rag_chunks  = AICM_RAG_Retriever::find_similar( $provider, $user_message, self::RAG_TOP_K );
-		$rag_context = self::build_rag_context( $rag_chunks );
-		$source_ids  = array_values( array_unique( array_column( $rag_chunks, 'post_id' ) ) );
+		// ── Step 3: RAG retrieval (only when Semantic Q&A mode is enabled) ──
+		// Structured search does not need embeddings; running the brute-force
+		// cosine retriever on every turn is a cost + shared-host timeout risk,
+		// so it is gated off by default (see spec §8).
+		$rag_chunks  = array();
+		$rag_context = '';
+		$source_ids  = array();
+
+		if ( (bool) AI_ChatMate::get_setting( 'semantic_mode', false ) ) {
+			$rag_chunks  = AICM_RAG_Retriever::find_similar( $provider, $user_message, self::RAG_TOP_K );
+			$rag_context = self::build_rag_context( $rag_chunks );
+			$source_ids  = array_values( array_unique( array_column( $rag_chunks, 'post_id' ) ) );
+		}
 
 		// ── Step 4: build first-turn messages ────────────────────────────
 		$system_prompt = self::build_system_prompt( $rag_context );
