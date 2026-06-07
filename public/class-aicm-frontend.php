@@ -77,6 +77,19 @@ class AICM_Frontend {
 	 */
 	private function __clone() {}
 
+	/**
+	 * Whether the public chat widget is enabled by the admin.
+	 *
+	 * The widget is OFF by default; the admin turns it on in the setup wizard
+	 * or Settings. This is the same opt-in flag the /chat endpoint enforces, so
+	 * the widget never appears for a bot that cannot answer.
+	 *
+	 * @return bool
+	 */
+	private static function is_enabled(): bool {
+		return (bool) AI_ChatMate::get_setting( 'widget_enabled', false );
+	}
+
 	// ── Hooks ─────────────────────────────────────────────────────────────────
 
 	/**
@@ -85,6 +98,11 @@ class AICM_Frontend {
 	 * Callback for the `wp_enqueue_scripts` action.
 	 */
 	public function enqueue_assets(): void {
+		// Opt-in gate: do nothing unless the admin enabled the widget.
+		if ( ! self::is_enabled() ) {
+			return;
+		}
+
 		// ── Stylesheet ────────────────────────────────────────────────────
 		wp_enqueue_style(
 			'aicm-widget',
@@ -138,7 +156,7 @@ class AICM_Frontend {
 				// First message displayed when the widget is opened (optional).
 				'welcomeMessage' => (string) AI_ChatMate::get_setting( 'welcome_message', '' ),
 				// Input placeholder — localised so it can be translated.
-				'placeholder'    => __( 'Ask a question\u2026', 'ai-chatmate' ),
+				'placeholder'    => __( 'Ask a question…', 'ai-chatmate' ),
 			)
 		);
 	}
@@ -153,6 +171,11 @@ class AICM_Frontend {
 	 * Callback for the `wp_footer` action.
 	 */
 	public function render_widget(): void {
+		// Opt-in gate: render nothing unless the admin enabled the widget.
+		if ( ! self::is_enabled() ) {
+			return;
+		}
+
 		$site_name = get_bloginfo( 'name' );
 		?>
 		<!-- AI ChatMate widget — start -->
