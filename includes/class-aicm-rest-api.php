@@ -181,6 +181,46 @@ class AICM_REST_API {
 			)
 		);
 
+		// Admin: wizard — detect (preview) schema without persisting.
+		register_rest_route(
+			self::NAMESPACE,
+			'/onboarding/detect',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'onboarding_detect' ),
+				'permission_callback' => array( $this, 'admin_permission_check' ),
+			)
+		);
+
+		// Admin: wizard — read/save the field config.
+		register_rest_route(
+			self::NAMESPACE,
+			'/field-config',
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_field_config' ),
+					'permission_callback' => array( $this, 'admin_permission_check' ),
+				),
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'save_field_config' ),
+					'permission_callback' => array( $this, 'admin_permission_check' ),
+				),
+			)
+		);
+
+		// Admin: wizard — mark onboarding complete.
+		register_rest_route(
+			self::NAMESPACE,
+			'/onboarding/complete',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'complete_onboarding' ),
+				'permission_callback' => array( $this, 'admin_permission_check' ),
+			)
+		);
+
 		// Admin: Q&A list + create.
 		register_rest_route(
 			self::NAMESPACE,
@@ -752,6 +792,80 @@ class AICM_REST_API {
 			),
 			200
 		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Onboarding wizard endpoints
+	// -------------------------------------------------------------------------
+
+	/**
+	 * POST /onboarding/detect — run discovery in preview mode (no persist).
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function onboarding_detect(): WP_REST_Response {
+		$schema = AICM_Schema_Discovery::run( false );
+		return new WP_REST_Response(
+			array(
+				'schema'     => $schema,
+				'post_types' => count( $schema['post_types'] ?? array() ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * GET /field-config — return the saved field config.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function get_field_config(): WP_REST_Response {
+		return new WP_REST_Response( array( 'config' => AICM_Field_Config::get() ), 200 );
+	}
+
+	/**
+	 * POST /field-config — sanitize and persist a field config payload.
+	 *
+	 * @param WP_REST_Request $request Incoming request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function save_field_config( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$params = $request->get_json_params();
+		if ( ! is_array( $params ) || ! isset( $params['config'] ) ) {
+			return new WP_Error( 'aicm_bad_request', __( 'Invalid request body.', 'ai-chatmate' ), array( 'status' => 400 ) );
+		}
+		$saved = AICM_Field_Config::save( $params['config'] );
+		return new WP_REST_Response( array( 'success' => true, 'config' => $saved ), 200 );
+	}
+
+	/**
+	 * POST /onboarding/complete — persist chosen post types + mark done.
+	 *
+	 * @param WP_REST_Request $request Incoming request.
+	 * @return WP_REST_Response
+	 */
+	public function complete_onboarding( WP_REST_Request $request ): WP_REST_Response {
+		$params = (array) $request->get_json_params();
+
+		// Persist the chosen searchable post types (reuses existing setting).
+		if ( isset( $params['index_post_types'] ) && is_array( $params['index_post_types'] ) ) {
+			AI_ChatMate::update_setting(
+				'index_post_types',
+				array_map( 'sanitize_key', $params['index_post_types'] )
+			);
+		}
+
+		// Persist the field config if supplied.
+		if ( isset( $params['config'] ) ) {
+			AICM_Field_Config::save( $params['config'] );
+		}
+
+		// Persist the live schema (the wizard previewed it; now make it live).
+		AICM_Schema_Discovery::run( true );
+
+		AICM_Onboarding::mark_complete();
+
+		return new WP_REST_Response( array( 'success' => true ), 200 );
 	}
 
 	// -------------------------------------------------------------------------
