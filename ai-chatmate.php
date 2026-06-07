@@ -161,6 +161,7 @@ final class AI_ChatMate {
 		require_once AICM_PLUGIN_DIR . 'includes/schema/class-aicm-schema-cache.php';
 		require_once AICM_PLUGIN_DIR . 'includes/schema/class-aicm-field-detector.php';
 		require_once AICM_PLUGIN_DIR . 'includes/schema/class-aicm-schema-discovery.php';
+		require_once AICM_PLUGIN_DIR . 'includes/schema/class-aicm-schema-catalog.php';
 
 		// Indexing pipeline — loaded on every request because:
 		//  a) WP-Cron fires via HTTP on any page load.
