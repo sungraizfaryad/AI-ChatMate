@@ -81,6 +81,18 @@ No. The chat widget JS is less than 10KB gzipped and loads asynchronously. Admin
 
 Yes. The schema discovery engine automatically detects custom fields from ACF, MetaBox, and WooCommerce product attributes.
 
+== External services ==
+
+This plugin connects to the OpenAI API. This is required for the AI chat features: OpenAI turns a visitor's natural-language question into a structured search of your own content and writes the answer.
+
+What is sent, and when: only when a visitor sends a chat message, the plugin sends that message text plus the titles and short excerpts of the matching content from your own site to OpenAI. If you enable the optional Semantic Q&A mode, the text of your selected content is also sent to OpenAI during indexing to generate embeddings. Your API key, your full database, and IP addresses are never sent. Nothing is sent until you add your own OpenAI API key and turn the chat widget on — both are off by default.
+
+The service is provided by OpenAI, L.L.C. Please review their policies:
+
+* Terms of Use: https://openai.com/policies/terms-of-use
+* Privacy Policy: https://openai.com/policies/privacy-policy
+* API data usage policies: https://openai.com/policies/api-data-usage-policies
+
 == Screenshots ==
 
 1. Settings page — configure your API key and AI provider
