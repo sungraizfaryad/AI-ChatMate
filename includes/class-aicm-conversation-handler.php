@@ -357,6 +357,18 @@ class AICM_Conversation_Handler {
 		$prompt  = "You are an AI assistant for **{$site_name}**. {$personality_text}\n\n";
 		$prompt .= "Your role is to help visitors find information, products, listings, and other content on this website.\n\n";
 
+		// Inject the discovered content structure so the model emits valid
+		// post types, taxonomy slugs, and meta keys instead of guessing.
+		$schema  = AICM_Schema_Cache::get();
+		$types   = (array) AI_ChatMate::get_setting( 'index_post_types', array( 'post', 'page' ) );
+		$catalog = is_array( $schema ) ? AICM_Schema_Catalog::build_prompt_block( $schema, $types ) : '';
+
+		if ( '' !== $catalog ) {
+			$prompt .= "## Searchable content structure\n\n";
+			$prompt .= $catalog . "\n\n";
+			$prompt .= "When the visitor wants to find or filter content, call `search_posts` using ONLY the post types, taxonomy slugs, and meta keys listed above. Never invent slugs or keys.\n\n";
+		}
+
 		if ( '' !== $rag_context ) {
 			$prompt .= "## Relevant content retrieved from this website\n\n";
 			$prompt .= $rag_context . "\n\n";
@@ -550,6 +562,14 @@ class AICM_Conversation_Handler {
 
 		$type_list = implode( ', ', $configured_types );
 
+		$schema = AICM_Schema_Cache::get();
+		$hints  = is_array( $schema )
+			? AICM_Schema_Catalog::function_hints( $schema, $configured_types )
+			: array( 'post_types' => array(), 'taxonomy_hint' => '', 'meta_hint' => '' );
+
+		$tax_hint  = '' !== $hints['taxonomy_hint'] ? " Available taxonomies and example term slugs by post type — {$hints['taxonomy_hint']}." : '';
+		$meta_hint = '' !== $hints['meta_hint'] ? " Available meta keys by post type — {$hints['meta_hint']}." : '';
+
 		return array(
 			array(
 				'name'        => 'search_posts',
@@ -575,7 +595,7 @@ class AICM_Conversation_Handler {
 
 						'taxonomy_filters' => array(
 							'type'        => 'array',
-							'description' => 'Filter by taxonomy terms (e.g. category, tag, or a custom taxonomy).',
+							'description' => 'Filter by taxonomy terms (e.g. category, tag, or a custom taxonomy).' . $tax_hint,
 							'items'       => array(
 								'type'       => 'object',
 								'properties' => array(
@@ -594,7 +614,7 @@ class AICM_Conversation_Handler {
 
 						'meta_filters' => array(
 							'type'        => 'array',
-							'description' => 'Filter by custom field (post meta) values.',
+							'description' => 'Filter by custom field (post meta) values.' . $meta_hint,
 							'items'       => array(
 								'type'       => 'object',
 								'properties' => array(
