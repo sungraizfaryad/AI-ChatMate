@@ -123,7 +123,11 @@ class AICM_Encryption {
 		}
 
 		// Also confirm that the cipher we use is actually supported on this build.
-		if ( ! in_array( self::CIPHER, openssl_get_cipher_methods(), true ) ) {
+		// OpenSSL 3.x (PHP 8.x) reports cipher names lower-cased, so compare
+		// case-insensitively — otherwise this check fails on modern hosts and
+		// key storage silently breaks.
+		$available_ciphers = array_map( 'strtolower', openssl_get_cipher_methods() );
+		if ( ! in_array( strtolower( self::CIPHER ), $available_ciphers, true ) ) {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( 'AI ChatMate: AES-256-CBC cipher is not available in this OpenSSL build.' );
