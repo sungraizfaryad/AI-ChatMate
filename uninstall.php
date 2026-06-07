@@ -65,6 +65,8 @@ function aicm_uninstall_single_site(): void {
 		'aicm_api_key_anthropic',
 		'aicm_api_key_google',
 		'aicm_monthly_usage',
+		'aicm_field_config',
+		'aicm_onboarded',
 	);
 
 	foreach ( $options as $option ) {
