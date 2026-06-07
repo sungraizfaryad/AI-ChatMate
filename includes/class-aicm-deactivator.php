@@ -33,7 +33,7 @@ class AICM_Deactivator {
 
 		// Mark the index as not running — prevents a stale "in progress" state
 		// from showing in the admin after reactivation.
-		$status             = get_option( 'aicm_index_status', array() );
+		$status               = get_option( 'aicm_index_status', array() );
 		$status['is_running'] = false;
 		update_option( 'aicm_index_status', $status );
 

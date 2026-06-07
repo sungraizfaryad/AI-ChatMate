@@ -68,8 +68,8 @@ class AICM_Frontend {
 	 */
 	private function __construct() {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
-		add_action( 'wp_footer',          array( $this, 'render_widget' ), 100 );
-		add_shortcode( 'ai_chatmate',     array( $this, 'shortcode' ) );
+		add_action( 'wp_footer', array( $this, 'render_widget' ), 100 );
+		add_shortcode( 'ai_chatmate', array( $this, 'shortcode' ) );
 	}
 
 	/**
@@ -107,12 +107,12 @@ class AICM_Frontend {
 		wp_enqueue_style(
 			'aicm-widget',
 			AICM_PLUGIN_URL . 'public/css/aicm-widget.css',
-			[],
+			array(),
 			AICM_VERSION
 		);
 
 		// ── Brand colour + position overrides (inline, appended to sheet) ─
-		$raw_color    = (string) AI_ChatMate::get_setting( 'widget_color',    '#0073aa' );
+		$raw_color    = (string) AI_ChatMate::get_setting( 'widget_color', '#0073aa' );
 		$raw_position = (string) AI_ChatMate::get_setting( 'widget_position', 'bottom-right' );
 
 		$color    = sanitize_hex_color( $raw_color ) ?: '#0073aa';
@@ -137,7 +137,7 @@ class AICM_Frontend {
 		wp_enqueue_script(
 			'aicm-widget',
 			AICM_PLUGIN_URL . 'public/js/aicm-widget.js',
-			[],       // No dependencies — vanilla JS.
+			array(),       // No dependencies — vanilla JS.
 			AICM_VERSION,
 			true      // Load in footer (after DOM is ready).
 		);

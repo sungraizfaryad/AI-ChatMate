@@ -51,7 +51,7 @@ class AICM_Admin {
 	 * Constructor — private to enforce singleton.
 	 */
 	private function __construct() {
-		add_action( 'admin_menu',            array( $this, 'register_menus' ) );
+		add_action( 'admin_menu', array( $this, 'register_menus' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 	}
 
@@ -148,15 +148,15 @@ class AICM_Admin {
 				'var aicmAdmin = %s;',
 				wp_json_encode(
 					array(
-						'restUrl'   => esc_url_raw( rest_url( 'aicm/v1' ) ),
-						'nonce'     => wp_create_nonce( 'wp_rest' ),
-						'version'   => AICM_VERSION,
-						'i18n'      => array(
-							'saving'          => __( 'Saving…', 'ai-chatmate' ),
-							'saved'           => __( 'Settings saved.', 'ai-chatmate' ),
-							'testing'         => __( 'Testing connection…', 'ai-chatmate' ),
-							'connected'       => __( 'Connected!', 'ai-chatmate' ),
-							'error'           => __( 'Something went wrong. Please try again.', 'ai-chatmate' ),
+						'restUrl' => esc_url_raw( rest_url( 'aicm/v1' ) ),
+						'nonce'   => wp_create_nonce( 'wp_rest' ),
+						'version' => AICM_VERSION,
+						'i18n'    => array(
+							'saving'    => __( 'Saving…', 'ai-chatmate' ),
+							'saved'     => __( 'Settings saved.', 'ai-chatmate' ),
+							'testing'   => __( 'Testing connection…', 'ai-chatmate' ),
+							'connected' => __( 'Connected!', 'ai-chatmate' ),
+							'error'     => __( 'Something went wrong. Please try again.', 'ai-chatmate' ),
 						),
 					)
 				)
@@ -281,8 +281,8 @@ class AICM_Admin {
 	 */
 	private function is_plugin_page( string $hook_suffix ): bool {
 		// WordPress generates hook suffixes like:
-		//   toplevel_page_ai-chatmate
-		//   ai-chatmate_page_ai-chatmate-indexing
+		// toplevel_page_ai-chatmate
+		// ai-chatmate_page_ai-chatmate-indexing
 		// Both contain our menu slug.
 		return str_contains( $hook_suffix, self::MENU_SLUG );
 	}

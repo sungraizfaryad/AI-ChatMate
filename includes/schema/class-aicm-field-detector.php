@@ -72,7 +72,7 @@ class AICM_Field_Detector {
 				}
 
 				$fields[ $field_name ] = array(
-					'label'    => $field['label']    ?? $field_name,
+					'label'    => $field['label'] ?? $field_name,
 					'type'     => self::map_acf_type( $field['type'] ?? 'text' ),
 					'acf_type' => $field['type'] ?? 'text',
 					'source'   => 'acf',
@@ -218,32 +218,32 @@ class AICM_Field_Detector {
 
 		// Standard WooCommerce product meta fields.
 		$fields = array(
-			'_price'           => array(
+			'_price'         => array(
 				'label'  => __( 'Price', 'ai-chatmate' ),
 				'type'   => 'numeric',
 				'source' => 'woocommerce',
 			),
-			'_regular_price'   => array(
+			'_regular_price' => array(
 				'label'  => __( 'Regular Price', 'ai-chatmate' ),
 				'type'   => 'numeric',
 				'source' => 'woocommerce',
 			),
-			'_sale_price'      => array(
+			'_sale_price'    => array(
 				'label'  => __( 'Sale Price', 'ai-chatmate' ),
 				'type'   => 'numeric',
 				'source' => 'woocommerce',
 			),
-			'_sku'             => array(
+			'_sku'           => array(
 				'label'  => __( 'SKU', 'ai-chatmate' ),
 				'type'   => 'text',
 				'source' => 'woocommerce',
 			),
-			'_stock'           => array(
+			'_stock'         => array(
 				'label'  => __( 'Stock Quantity', 'ai-chatmate' ),
 				'type'   => 'numeric',
 				'source' => 'woocommerce',
 			),
-			'_stock_status'    => array(
+			'_stock_status'  => array(
 				'label'   => __( 'Stock Status', 'ai-chatmate' ),
 				'type'    => 'text',
 				'choices' => array( 'instock', 'outofstock', 'onbackorder' ),
@@ -255,7 +255,7 @@ class AICM_Field_Detector {
 		$attribute_taxonomies = wc_get_attribute_taxonomies();
 		if ( ! empty( $attribute_taxonomies ) ) {
 			foreach ( $attribute_taxonomies as $attribute ) {
-				$tax_name = wc_attribute_taxonomy_name( $attribute->attribute_name );
+				$tax_name            = wc_attribute_taxonomy_name( $attribute->attribute_name );
 				$fields[ $tax_name ] = array(
 					'label'  => $attribute->attribute_label,
 					'type'   => 'text',

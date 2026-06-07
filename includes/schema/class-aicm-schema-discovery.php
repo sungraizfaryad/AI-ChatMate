@@ -175,7 +175,7 @@ class AICM_Schema_Discovery {
 	/**
 	 * Collect all schema information for a single post type.
 	 *
-	 * @param string   $pt_name   Post type slug.
+	 * @param string       $pt_name   Post type slug.
 	 * @param WP_Post_Type $pt_object Post type object.
 	 * @return array Post type schema data.
 	 */
@@ -245,7 +245,12 @@ class AICM_Schema_Discovery {
 			$result[ $tax_name ] = array(
 				'label'      => $tax_object->label,
 				'terms'      => $terms,
-				'term_count' => wp_count_terms( array( 'taxonomy' => $tax_name, 'hide_empty' => true ) ),
+				'term_count' => wp_count_terms(
+					array(
+						'taxonomy'   => $tax_name,
+						'hide_empty' => true,
+					)
+				),
 				'truncated'  => count( $terms ) >= self::MAX_TERMS,
 			);
 		}
@@ -454,12 +459,12 @@ class AICM_Schema_Discovery {
 				$numeric_values[] = (float) $value;
 			}
 			if ( in_array( strtolower( (string) $value ), $boolean_strings, true ) ) {
-				$boolean_count++;
+				++$boolean_count;
 			}
 			// strtotime() returns false for non-date strings — use strict check.
 			// Only flag as date if the value looks like a date, not a plain number.
 			if ( ! is_numeric( $value ) && false !== strtotime( (string) $value ) ) {
-				$date_count++;
+				++$date_count;
 			}
 		}
 

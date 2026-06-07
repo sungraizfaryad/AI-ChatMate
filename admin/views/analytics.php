@@ -29,16 +29,16 @@ if ( ! current_user_can( 'manage_options' ) ) {
 global $wpdb;
 
 // ── Monthly cost history ───────────────────────────────────────────────────
-$monthly_usage  = (array) get_option( 'aicm_monthly_usage', array() );
+$monthly_usage = (array) get_option( 'aicm_monthly_usage', array() );
 
 // Sort descending by month key (YYYY-MM) so newest is first.
 krsort( $monthly_usage );
 
 // We show at most 12 months of history.
-$usage_display  = array_slice( $monthly_usage, 0, 12, true );
+$usage_display = array_slice( $monthly_usage, 0, 12, true );
 
 // Current month key and cost.
-$current_month  = gmdate( 'Y-m' );
+$current_month   = gmdate( 'Y-m' );
 $this_month_cost = (float) ( $monthly_usage[ $current_month ] ?? 0.0 );
 
 // The largest monthly cost — used to scale the bar chart proportionally.
@@ -47,17 +47,22 @@ $max_cost = ! empty( $usage_display )
 	: 0.0;
 
 // ── Budget ────────────────────────────────────────────────────────────────
-$monthly_budget     = (float) AI_ChatMate::get_setting( 'monthly_budget', 0.0 );
-$budget_set         = $monthly_budget > 0.0;
-$budget_pct         = ( $budget_set && $monthly_budget > 0 )
+$monthly_budget = (float) AI_ChatMate::get_setting( 'monthly_budget', 0.0 );
+$budget_set     = $monthly_budget > 0.0;
+$budget_pct     = ( $budget_set && $monthly_budget > 0 )
 	? min( 100, round( ( $this_month_cost / $monthly_budget ) * 100, 1 ) )
 	: 0.0;
-$over_budget        = $budget_set && $this_month_cost >= $monthly_budget;
+$over_budget    = $budget_set && $this_month_cost >= $monthly_budget;
 
 // ── Index stats ────────────────────────────────────────────────────────────
 $index_status = (array) get_option(
 	'aicm_index_status',
-	array( 'total_chunks' => 0, 'pending' => 0, 'is_running' => false, 'last_indexed' => null )
+	array(
+		'total_chunks' => 0,
+		'pending'      => 0,
+		'is_running'   => false,
+		'last_indexed' => null,
+	)
 );
 
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -70,7 +75,7 @@ $failed_count = (int) $wpdb->get_var(
 	"SELECT COUNT(*) FROM `{$wpdb->prefix}aicm_queue` WHERE status = 'failed'"
 );
 
-$last_indexed   = $index_status['last_indexed'] ?? null;
+$last_indexed       = $index_status['last_indexed'] ?? null;
 $last_indexed_human = $last_indexed
 	? human_time_diff( (int) strtotime( $last_indexed ), time() )
 	: null;
@@ -78,10 +83,10 @@ $last_indexed_human = $last_indexed
 // ── Conversation log stats (only when logging is enabled) ──────────────────
 $logging_enabled = (bool) AI_ChatMate::get_setting( 'logging_enabled', false );
 $log_stats       = array(
-	'sessions_this_month'  => 0,
-	'messages_this_month'  => 0,
-	'avg_response_ms'      => 0,
-	'total_sessions_ever'  => 0,
+	'sessions_this_month' => 0,
+	'messages_this_month' => 0,
+	'avg_response_ms'     => 0,
+	'total_sessions_ever' => 0,
 );
 
 if ( $logging_enabled ) {
@@ -254,15 +259,16 @@ if ( $logging_enabled ) {
 				</tr>
 			</thead>
 			<tbody>
-				<?php foreach ( $usage_display as $month_key => $cost ) :
-					$cost        = (float) $cost;
-					$bar_pct     = ( $max_cost > 0 ) ? round( ( $cost / $max_cost ) * 100, 1 ) : 0;
-					$is_current  = ( $month_key === $current_month );
+				<?php
+				foreach ( $usage_display as $month_key => $cost ) :
+					$cost       = (float) $cost;
+					$bar_pct    = ( $max_cost > 0 ) ? round( ( $cost / $max_cost ) * 100, 1 ) : 0;
+					$is_current = ( $month_key === $current_month );
 
 					// Parse YYYY-MM into a localised month name.
 					$ts          = mktime( 0, 0, 0, (int) substr( $month_key, 5, 2 ), 1, (int) substr( $month_key, 0, 4 ) );
 					$month_label = date_i18n( 'F Y', $ts );
-				?>
+					?>
 					<tr<?php echo $is_current ? ' style="font-weight:600;"' : ''; ?>>
 						<td>
 							<?php echo esc_html( $month_label ); ?>

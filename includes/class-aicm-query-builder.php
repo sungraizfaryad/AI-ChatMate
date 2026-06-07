@@ -45,7 +45,7 @@ class AICM_Query_Builder {
 	 *
 	 * @var string[]
 	 */
-	private const ALLOWED_ORDERBY = [
+	private const ALLOWED_ORDERBY = array(
 		'date',
 		'modified',
 		'title',
@@ -53,14 +53,14 @@ class AICM_Query_Builder {
 		'meta_value',
 		'meta_value_num',
 		'rand',
-	];
+	);
 
 	/**
 	 * Allowed values for the WP_Query 'order' parameter.
 	 *
 	 * @var string[]
 	 */
-	private const ALLOWED_ORDER = [ 'ASC', 'DESC' ];
+	private const ALLOWED_ORDER = array( 'ASC', 'DESC' );
 
 	/**
 	 * Allowed compare operators for meta_query clauses.
@@ -69,7 +69,7 @@ class AICM_Query_Builder {
 	 *
 	 * @var string[]
 	 */
-	private const ALLOWED_COMPARE = [
+	private const ALLOWED_COMPARE = array(
 		'=',
 		'!=',
 		'<',
@@ -80,7 +80,7 @@ class AICM_Query_Builder {
 		'NOT LIKE',
 		'EXISTS',
 		'NOT EXISTS',
-	];
+	);
 
 	// ── Public API ───────────────────────────────────────────────────────────
 
@@ -132,7 +132,7 @@ class AICM_Query_Builder {
 			: 'DESC';
 
 		// ── base query args ────────────────────────────────────────────────
-		$query_args = [
+		$query_args = array(
 			'post_type'              => $post_type,
 			'post_status'            => 'publish',
 			'posts_per_page'         => $per_page,
@@ -143,7 +143,7 @@ class AICM_Query_Builder {
 			'update_post_meta_cache' => false,
 			'update_post_term_cache' => false,
 			'ignore_sticky_posts'    => true,
-		];
+		);
 
 		// ── keyword search ─────────────────────────────────────────────────
 		$search = sanitize_text_field( wp_unslash( (string) ( $args['search'] ?? '' ) ) );
@@ -153,7 +153,7 @@ class AICM_Query_Builder {
 
 		// ── meta_key for ordering by custom field value ────────────────────
 		// Required by WP_Query when orderby is 'meta_value' or 'meta_value_num'.
-		if ( in_array( $orderby, [ 'meta_value', 'meta_value_num' ], true ) ) {
+		if ( in_array( $orderby, array( 'meta_value', 'meta_value_num' ), true ) ) {
 			$meta_key = sanitize_key( (string) ( $args['meta_key'] ?? '' ) );
 			if ( '' !== $meta_key ) {
 				$query_args['meta_key'] = $meta_key;
@@ -166,10 +166,10 @@ class AICM_Query_Builder {
 		// ── taxonomy_filters ──────────────────────────────────────────────
 		$tax_input = is_array( $args['taxonomy_filters'] ?? null )
 			? $args['taxonomy_filters']
-			: [];
+			: array();
 
 		if ( ! empty( $tax_input ) ) {
-			$tax_query = [ 'relation' => 'AND' ];
+			$tax_query = array( 'relation' => 'AND' );
 
 			foreach ( $tax_input as $filter ) {
 				if ( ! is_array( $filter ) ) {
@@ -190,11 +190,11 @@ class AICM_Query_Builder {
 					continue;
 				}
 
-				$tax_query[] = [
+				$tax_query[] = array(
 					'taxonomy' => $taxonomy,
 					'field'    => self::resolve_tax_field( $taxonomy, $term ),
 					'terms'    => $term,
-				];
+				);
 			}
 
 			if ( count( $tax_query ) > 1 ) {
@@ -206,17 +206,17 @@ class AICM_Query_Builder {
 		// ── meta_filters ──────────────────────────────────────────────────
 		$meta_input = is_array( $args['meta_filters'] ?? null )
 			? $args['meta_filters']
-			: [];
+			: array();
 
 		if ( ! empty( $meta_input ) ) {
-			$meta_query = [ 'relation' => 'AND' ];
+			$meta_query = array( 'relation' => 'AND' );
 
 			foreach ( $meta_input as $filter ) {
 				if ( ! is_array( $filter ) ) {
 					continue;
 				}
 
-				$key     = sanitize_key( (string) ( $filter['key']     ?? '' ) );
+				$key     = sanitize_key( (string) ( $filter['key'] ?? '' ) );
 				$compare = strtoupper( sanitize_text_field( (string) ( $filter['compare'] ?? '=' ) ) );
 
 				if ( '' === $key ) {
@@ -227,14 +227,14 @@ class AICM_Query_Builder {
 					$compare = '=';
 				}
 
-				$meta_clause = [
+				$meta_clause = array(
 					'key'     => $key,
 					'compare' => $compare,
-				];
+				);
 
 				// EXISTS and NOT EXISTS queries do not take a value.
-				if ( ! in_array( $compare, [ 'EXISTS', 'NOT EXISTS' ], true ) ) {
-					$value = sanitize_text_field(
+				if ( ! in_array( $compare, array( 'EXISTS', 'NOT EXISTS' ), true ) ) {
+					$value                = sanitize_text_field(
 						wp_unslash( (string) ( $filter['value'] ?? '' ) )
 					);
 					$meta_clause['value'] = $value;
@@ -242,7 +242,7 @@ class AICM_Query_Builder {
 					// Use NUMERIC type for numeric comparators with numeric values —
 					// this allows MySQL to compare numbers correctly (e.g. 500 > 99).
 					if (
-						in_array( $compare, [ '<', '<=', '>', '>=' ], true )
+						in_array( $compare, array( '<', '<=', '>', '>=' ), true )
 						&& is_numeric( $value )
 					) {
 						$meta_clause['type'] = 'NUMERIC';
@@ -296,15 +296,15 @@ class AICM_Query_Builder {
 		$query = new WP_Query( $query_args );
 
 		if ( empty( $query->posts ) ) {
-			return [
+			return array(
 				'found'    => 0,
-				'posts'    => [],
-				'post_ids' => [],
-			];
+				'posts'    => array(),
+				'post_ids' => array(),
+			);
 		}
 
-		$simplified = [];
-		$post_ids   = [];
+		$simplified = array();
+		$post_ids   = array();
 
 		foreach ( $query->posts as $post_data ) {
 			$post = get_post( $post_data );
@@ -314,7 +314,7 @@ class AICM_Query_Builder {
 			}
 
 			$post_ids[]   = $post->ID;
-			$simplified[] = [
+			$simplified[] = array(
 				'id'      => $post->ID,
 				'title'   => $post->post_title,
 				'url'     => get_permalink( $post->ID ),
@@ -324,15 +324,15 @@ class AICM_Query_Builder {
 					'…'
 				),
 				'date'    => $post->post_date,
-			];
+			);
 		}
 
 		wp_reset_postdata();
 
-		return [
+		return array(
 			'found'    => count( $simplified ),
 			'posts'    => $simplified,
 			'post_ids' => $post_ids,
-		];
+		);
 	}
 }

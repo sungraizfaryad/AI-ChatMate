@@ -32,15 +32,15 @@ $has_anthropic = '' !== (string) get_option( 'aicm_api_key_anthropic', '' );
 $has_google    = '' !== (string) get_option( 'aicm_api_key_google', '' );
 
 $active_provider = esc_attr( $settings['active_provider'] ?? 'openai' );
-$chat_model      = esc_attr( $settings['chat_model']      ?? 'gpt-4o-mini' );
+$chat_model      = esc_attr( $settings['chat_model'] ?? 'gpt-4o-mini' );
 $embed_model     = esc_attr( $settings['embedding_model'] ?? 'text-embedding-3-small' );
-$personality     = esc_attr( $settings['ai_personality']  ?? 'friendly' );
+$personality     = esc_attr( $settings['ai_personality'] ?? 'friendly' );
 $welcome_msg     = esc_attr( $settings['welcome_message'] ?? '' );
-$widget_color    = esc_attr( $settings['widget_color']    ?? '#0073aa' );
+$widget_color    = esc_attr( $settings['widget_color'] ?? '#0073aa' );
 $widget_pos      = esc_attr( $settings['widget_position'] ?? 'bottom-right' );
-$rate_limit      = (int) ( $settings['rate_limit_msgs']   ?? 20 );
+$rate_limit      = (int) ( $settings['rate_limit_msgs'] ?? 20 );
 $token_cap       = (int) ( $settings['session_token_cap'] ?? 5000 );
-$budget          = (float) ( $settings['monthly_budget']  ?? 0 );
+$budget          = (float) ( $settings['monthly_budget'] ?? 0 );
 $logging         = ! empty( $settings['logging_enabled'] );
 ?>
 <div class="wrap" id="aicm-settings-page">

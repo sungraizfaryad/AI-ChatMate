@@ -67,7 +67,7 @@ class AICM_REST_API {
 				'callback'            => array( $this, 'handle_chat' ),
 				'permission_callback' => array( $this, 'chat_permission_check' ),
 				'args'                => array(
-					'message' => array(
+					'message'    => array(
 						'required'          => true,
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
@@ -116,7 +116,7 @@ class AICM_REST_API {
 						'sanitize_callback' => 'sanitize_key',
 						'validate_callback' => static fn( string $v ): bool => in_array( $v, array( 'openai', 'anthropic', 'google' ), true ),
 					),
-					'api_key' => array(
+					'api_key'  => array(
 						'required'          => false,
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
@@ -236,19 +236,19 @@ class AICM_REST_API {
 					'callback'            => array( $this, 'create_qa' ),
 					'permission_callback' => array( $this, 'admin_permission_check' ),
 					'args'                => array(
-						'question' => array(
+						'question'  => array(
 							'required'          => true,
 							'type'              => 'string',
 							'sanitize_callback' => 'sanitize_text_field',
 							'validate_callback' => static fn( string $v ): bool => '' !== trim( $v ),
 						),
-						'answer'   => array(
+						'answer'    => array(
 							'required'          => true,
 							'type'              => 'string',
 							'sanitize_callback' => 'sanitize_textarea_field',
 							'validate_callback' => static fn( string $v ): bool => '' !== trim( $v ),
 						),
-						'priority' => array(
+						'priority'  => array(
 							'required' => false,
 							'type'     => 'integer',
 							'minimum'  => 1,
@@ -275,20 +275,20 @@ class AICM_REST_API {
 					'callback'            => array( $this, 'update_qa' ),
 					'permission_callback' => array( $this, 'admin_permission_check' ),
 					'args'                => array(
-						'id'       => array(
+						'id'        => array(
 							'required'          => true,
 							'type'              => 'integer',
 							'validate_callback' => static fn( $v ): bool => (int) $v > 0,
 						),
-						'question' => array(
+						'question'  => array(
 							'type'              => 'string',
 							'sanitize_callback' => 'sanitize_text_field',
 						),
-						'answer'   => array(
+						'answer'    => array(
 							'type'              => 'string',
 							'sanitize_callback' => 'sanitize_textarea_field',
 						),
-						'priority' => array(
+						'priority'  => array(
 							'type'    => 'integer',
 							'minimum' => 1,
 							'maximum' => 100,
@@ -511,13 +511,13 @@ class AICM_REST_API {
 			'results_display'   => 'plugin_page',
 		);
 
-		$allowed_providers  = array( 'openai', 'anthropic', 'google' );
-		$allowed_models     = array( 'gpt-4o-mini', 'gpt-4o', 'claude-sonnet-4-20250514', 'gemini-2.0-flash' );
-		$allowed_embed      = array( 'text-embedding-3-small', 'text-embedding-3-large' );
+		$allowed_providers   = array( 'openai', 'anthropic', 'google' );
+		$allowed_models      = array( 'gpt-4o-mini', 'gpt-4o', 'claude-sonnet-4-20250514', 'gemini-2.0-flash' );
+		$allowed_embed       = array( 'text-embedding-3-small', 'text-embedding-3-large' );
 		$allowed_personality = array( 'professional', 'friendly', 'casual', 'custom' );
-		$allowed_positions  = array( 'bottom-right', 'bottom-left' );
-		$allowed_display    = array( 'plugin_page', 'theme_archive', 'in_chat' );
-		$allowed_schedules  = array( 'daily', 'weekly' );
+		$allowed_positions   = array( 'bottom-right', 'bottom-left' );
+		$allowed_display     = array( 'plugin_page', 'theme_archive', 'in_chat' );
+		$allowed_schedules   = array( 'daily', 'weekly' );
 
 		$updated = $current;
 
@@ -628,7 +628,11 @@ class AICM_REST_API {
 			update_option( $option_name, AICM_Encryption::encrypt( $raw_key ) );
 		}
 
-		$result = array( 'success' => false, 'message' => '', 'model' => '' );
+		$result = array(
+			'success' => false,
+			'message' => '',
+			'model'   => '',
+		);
 
 		// Only OpenAI provider is implemented in Phase 1.
 		if ( 'openai' === $provider ) {
@@ -674,8 +678,8 @@ class AICM_REST_API {
 		$result = AICM_Conversation_Handler::handle( $message, $session_id );
 
 		// Resolve source post IDs into title + URL objects for the frontend.
-		$sources = [];
-		foreach ( (array) ( $result['sources'] ?? [] ) as $post_id ) {
+		$sources = array();
+		foreach ( (array) ( $result['sources'] ?? array() ) as $post_id ) {
 			$post = get_post( (int) $post_id );
 			if ( $post instanceof WP_Post ) {
 				$sources[] = array(
@@ -777,9 +781,9 @@ class AICM_REST_API {
 		$wpdb->query( "DELETE FROM `{$table}` WHERE status = 'pending'" );
 
 		// Update the status option to reflect the stop.
-		$status                 = get_option( 'aicm_index_status', array() );
-		$status['is_running']   = false;
-		$status['pending']      = 0;
+		$status               = get_option( 'aicm_index_status', array() );
+		$status['is_running'] = false;
+		$status['pending']    = 0;
 		update_option( 'aicm_index_status', $status );
 
 		return new WP_REST_Response( array( 'success' => true ), 200 );
@@ -875,7 +879,13 @@ class AICM_REST_API {
 			return new WP_Error( 'aicm_bad_request', __( 'Invalid request body.', 'ai-chatmate' ), array( 'status' => 400 ) );
 		}
 		$saved = AICM_Field_Config::save( $params['config'] );
-		return new WP_REST_Response( array( 'success' => true, 'config' => $saved ), 200 );
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'config'  => $saved,
+			),
+			200
+		);
 	}
 
 	/**
@@ -951,7 +961,13 @@ class AICM_REST_API {
 			);
 		}
 
-		return new WP_REST_Response( array( 'success' => true, 'id' => $result ), 201 );
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'id'      => $result,
+			),
+			201
+		);
 	}
 
 	/**
@@ -979,8 +995,8 @@ class AICM_REST_API {
 		$data = array( 'id' => $id );
 
 		foreach ( array( 'question', 'answer', 'priority', 'is_active' ) as $key ) {
-			$param         = $request->get_param( $key );
-			$data[ $key ]  = ( null !== $param ) ? $param : $current[ $key ];
+			$param        = $request->get_param( $key );
+			$data[ $key ] = ( null !== $param ) ? $param : $current[ $key ];
 		}
 
 		$result = AICM_QA_Manager::save( $data );
@@ -1048,7 +1064,7 @@ class AICM_REST_API {
 			: 'unknown';
 
 		// One-way hash — IP is never stored in the database or logs.
-		$ip_hash      = wp_hash( $raw_ip . wp_salt( 'nonce' ) );
+		$ip_hash       = wp_hash( $raw_ip . wp_salt( 'nonce' ) );
 		$transient_key = 'aicm_rl_' . $ip_hash;
 
 		$current = (int) get_transient( $transient_key );

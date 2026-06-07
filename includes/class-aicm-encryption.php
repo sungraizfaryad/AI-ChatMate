@@ -149,10 +149,10 @@ class AICM_Encryption {
 	 */
 	private static function derive_key_and_iv(): array {
 		// Use raw binary output (true) for maximum entropy.
-		$key = substr( hash( 'sha256', wp_salt( 'auth' ),        true ), 0, 32 );
+		$key = substr( hash( 'sha256', wp_salt( 'auth' ), true ), 0, 32 );
 		$iv  = substr( hash( 'sha256', wp_salt( 'secure_auth' ), true ), 0, 16 );
 
-		return [ $key, $iv ];
+		return array( $key, $iv );
 	}
 
 	/**

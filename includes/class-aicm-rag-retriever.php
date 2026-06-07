@@ -82,28 +82,28 @@ class AICM_RAG_Retriever {
 	 */
 	public static function find_similar(
 		AICM_LLM_Provider $provider,
-		string            $query,
-		int               $top_k      = 5,
-		array             $post_types = []
+		string $query,
+		int $top_k = 5,
+		array $post_types = array()
 	): array {
 		$query = trim( $query );
 
 		if ( '' === $query ) {
-			return [];
+			return array();
 		}
 
 		// ── Step 1: embed the query ────────────────────────────────────────
 		$query_vector = $provider->generate_embedding( $query );
 
 		if ( empty( $query_vector ) ) {
-			return [];
+			return array();
 		}
 
 		// Pre-compute the query magnitude once — reused for every chunk.
 		$query_magnitude = self::magnitude( $query_vector );
 
 		if ( 0.0 === $query_magnitude ) {
-			return [];
+			return array();
 		}
 
 		$query_dim = count( $query_vector );
@@ -115,12 +115,12 @@ class AICM_RAG_Retriever {
 
 		// Build the SQL and its argument list incrementally to support an
 		// optional post_type IN (...) clause without double-preparing.
-		$sql_where  = 'WHERE embedding IS NOT NULL AND LENGTH(embedding) > 0';
-		$sql_args   = [];
+		$sql_where = 'WHERE embedding IS NOT NULL AND LENGTH(embedding) > 0';
+		$sql_args  = array();
 
 		if ( ! empty( $post_types ) ) {
-			$sanitized    = array_map( 'sanitize_key', (array) $post_types );
-			$sanitized    = array_filter( $sanitized ); // Remove empty strings.
+			$sanitized = array_map( 'sanitize_key', (array) $post_types );
+			$sanitized = array_filter( $sanitized ); // Remove empty strings.
 			if ( ! empty( $sanitized ) ) {
 				$placeholders = implode( ', ', array_fill( 0, count( $sanitized ), '%s' ) );
 				$sql_where   .= " AND post_type IN ({$placeholders})";
@@ -132,7 +132,7 @@ class AICM_RAG_Retriever {
 		$sql_args[] = self::BATCH_SIZE; // %d LIMIT
 		// OFFSET is appended per iteration below.
 
-		$top_results   = [];
+		$top_results   = array();
 		$offset        = 0;
 		$rows_examined = 0;
 
@@ -179,13 +179,13 @@ class AICM_RAG_Retriever {
 					continue;
 				}
 
-				$top_results[] = [
-					'post_id'     => (int)    $row['post_id'],
+				$top_results[] = array(
+					'post_id'     => (int) $row['post_id'],
 					'post_type'   => (string) $row['post_type'],
-					'chunk_index' => (int)    $row['chunk_index'],
+					'chunk_index' => (int) $row['chunk_index'],
 					'chunk_text'  => (string) $row['chunk_text'],
 					'similarity'  => $sim,
-				];
+				);
 			}
 
 			$rows_examined += count( $rows );

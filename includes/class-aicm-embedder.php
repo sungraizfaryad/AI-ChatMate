@@ -58,19 +58,19 @@ class AICM_Embedder {
 	 *
 	 * Returns true on success, false if the API call failed.
 	 *
-	 * @param int                $post_id   WordPress post ID.
-	 * @param string             $post_type Post type slug (stored on each row).
-	 * @param string             $post_title Post title used as embedding prefix.
-	 * @param array[]            $chunks    Output of AICM_Chunker::chunk().
-	 *                                      Each: ['chunk_index', 'chunk_text', 'token_count']
-	 * @param AICM_LLM_Provider  $provider  Provider instance (must implement generate_embeddings_batch).
+	 * @param int               $post_id   WordPress post ID.
+	 * @param string            $post_type Post type slug (stored on each row).
+	 * @param string            $post_title Post title used as embedding prefix.
+	 * @param array[]           $chunks    Output of AICM_Chunker::chunk().
+	 *                                     Each: ['chunk_index', 'chunk_text', 'token_count']
+	 * @param AICM_LLM_Provider $provider  Provider instance (must implement generate_embeddings_batch).
 	 * @return bool
 	 */
 	public static function embed_post(
-		int               $post_id,
-		string            $post_type,
-		string            $post_title,
-		array             $chunks,
+		int $post_id,
+		string $post_type,
+		string $post_title,
+		array $chunks,
 		AICM_LLM_Provider $provider
 	): bool {
 		if ( empty( $chunks ) ) {
@@ -281,13 +281,13 @@ class AICM_Embedder {
 	 * @param int    $token_count   Estimated token count.
 	 */
 	private static function upsert_chunk(
-		int    $post_id,
+		int $post_id,
 		string $post_type,
-		int    $chunk_index,
+		int $chunk_index,
 		string $chunk_text,
 		string $content_hash,
 		string $embedding,
-		int    $token_count
+		int $token_count
 	): void {
 		global $wpdb;
 

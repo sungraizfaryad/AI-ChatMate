@@ -53,10 +53,10 @@ class AICM_Auto_Sync {
 	 * saving meta, so get_post_meta() returns the final, complete values.
 	 */
 	public static function init(): void {
-		add_action( 'save_post',          array( __CLASS__, 'on_save_post' ),          20, 3 );
+		add_action( 'save_post', array( __CLASS__, 'on_save_post' ), 20, 3 );
 		add_action( 'before_delete_post', array( __CLASS__, 'on_before_delete_post' ), 10, 1 );
-		add_action( 'wp_trash_post',      array( __CLASS__, 'on_trash_post' ),         10, 1 );
-		add_action( 'untrash_post',       array( __CLASS__, 'on_untrash_post' ),       10, 1 );
+		add_action( 'wp_trash_post', array( __CLASS__, 'on_trash_post' ), 10, 1 );
+		add_action( 'untrash_post', array( __CLASS__, 'on_untrash_post' ), 10, 1 );
 	}
 
 	// ── Callbacks ─────────────────────────────────────────────────────────────

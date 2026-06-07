@@ -122,17 +122,26 @@ class AICM_Conversation_Handler {
 		if ( null !== $qa_match ) {
 			// Persist the exchange to session history so the conversation
 			// continues naturally on subsequent turns.
-			$history[] = array( 'role' => 'user',      'content' => $user_message );
-			$history[] = array( 'role' => 'assistant',  'content' => $qa_match['answer'] );
+			$history[] = array(
+				'role'    => 'user',
+				'content' => $user_message,
+			);
+			$history[] = array(
+				'role'    => 'assistant',
+				'content' => $qa_match['answer'],
+			);
 			$history   = self::trim_history_to_budget( $history, (int) AI_ChatMate::get_setting( 'session_token_cap', 5000 ) );
 			self::save_history( $session_id, $history );
 
 			return array(
 				'reply'      => $qa_match['answer'],
 				'session_id' => $session_id,
-				'sources'    => [],
+				'sources'    => array(),
 				'error'      => null,
-				'usage'      => array( 'input_tokens' => 0, 'output_tokens' => 0 ),
+				'usage'      => array(
+					'input_tokens'  => 0,
+					'output_tokens' => 0,
+				),
 			);
 		}
 
@@ -156,9 +165,9 @@ class AICM_Conversation_Handler {
 		$functions     = self::get_function_definitions();
 
 		// Determine how many output tokens we can afford.
-		$token_cap        = (int) AI_ChatMate::get_setting( 'session_token_cap', 5000 );
-		$estimated_input  = self::estimate_message_tokens( $messages );
-		$max_output       = max( 256, min( 1024, $token_cap - $estimated_input ) );
+		$token_cap       = (int) AI_ChatMate::get_setting( 'session_token_cap', 5000 );
+		$estimated_input = self::estimate_message_tokens( $messages );
+		$max_output      = max( 256, min( 1024, $token_cap - $estimated_input ) );
 
 		// ── Step 5: first chat_completion call ────────────────────────────
 		$result = $provider->chat_completion(
@@ -167,13 +176,16 @@ class AICM_Conversation_Handler {
 			array( 'max_tokens' => $max_output )
 		);
 
-		$total_usage = $result['usage'] ?? array( 'input_tokens' => 0, 'output_tokens' => 0 );
+		$total_usage = $result['usage'] ?? array(
+			'input_tokens'  => 0,
+			'output_tokens' => 0,
+		);
 
 		// ── Steps 6–7: function call branch ──────────────────────────────
 		if ( ! empty( $result['function_call'] ) ) {
-			$fn_name   = (string) ( $result['function_call']['name']      ?? '' );
+			$fn_name   = (string) ( $result['function_call']['name'] ?? '' );
 			$fn_args   = json_decode( (string) ( $result['function_call']['arguments'] ?? '{}' ), true );
-			$fn_args   = is_array( $fn_args ) ? $fn_args : [];
+			$fn_args   = is_array( $fn_args ) ? $fn_args : array();
 			$fn_result = self::execute_function( $fn_name, $fn_args );
 
 			// Merge WP_Query result post IDs into the sources list.
@@ -193,8 +205,8 @@ class AICM_Conversation_Handler {
 				$fn_result
 			);
 
-			$result2     = $provider->chat_completion( $messages_r2, [], array( 'max_tokens' => 1024 ) );
-			$total_usage = self::merge_usage( $total_usage, $result2['usage'] ?? [] );
+			$result2     = $provider->chat_completion( $messages_r2, array(), array( 'max_tokens' => 1024 ) );
+			$total_usage = self::merge_usage( $total_usage, $result2['usage'] ?? array() );
 			$reply       = (string) ( $result2['content'] ?? '' );
 
 		} else {
@@ -207,8 +219,14 @@ class AICM_Conversation_Handler {
 		}
 
 		// ── Step 8: persist session history ──────────────────────────────
-		$history[] = array( 'role' => 'user',      'content' => $user_message );
-		$history[] = array( 'role' => 'assistant',  'content' => $reply );
+		$history[] = array(
+			'role'    => 'user',
+			'content' => $user_message,
+		);
+		$history[] = array(
+			'role'    => 'assistant',
+			'content' => $reply,
+		);
 		$history   = self::trim_history_to_budget( $history, $token_cap );
 		self::save_history( $session_id, $history );
 
@@ -283,7 +301,7 @@ class AICM_Conversation_Handler {
 	private static function load_history( string $session_id ): array {
 		$data = get_transient( self::SESSION_KEY_PREFIX . $session_id );
 
-		return is_array( $data ) ? $data : [];
+		return is_array( $data ) ? $data : array();
 	}
 
 	/**
@@ -374,19 +392,19 @@ class AICM_Conversation_Handler {
 			$prompt .= "## Relevant content retrieved from this website\n\n";
 			$prompt .= $rag_context . "\n\n";
 			$prompt .= "Use the content above to answer the user's question when it is relevant. "
-				. "Cite the source title and link when referencing specific content. "
-				. "If the retrieved content does not fully answer the question, you may call "
+				. 'Cite the source title and link when referencing specific content. '
+				. 'If the retrieved content does not fully answer the question, you may call '
 				. "the `search_posts` function to look for more specific results.\n\n";
 		} else {
-			$prompt .= "No pre-retrieved content was found for this query. "
-				. "Use the `search_posts` function to find relevant content on this website "
+			$prompt .= 'No pre-retrieved content was found for this query. '
+				. 'Use the `search_posts` function to find relevant content on this website '
 				. "if the user's question requires looking up specific posts, pages, "
 				. "listings, or products.\n\n";
 		}
 
 		$prompt .= "Always be accurate. Only state facts supported by the website's content. "
-			. "If you cannot find relevant information after searching, say so honestly "
-			. "and suggest how the visitor might find what they need.";
+			. 'If you cannot find relevant information after searching, say so honestly '
+			. 'and suggest how the visitor might find what they need.';
 
 		return $prompt;
 	}
@@ -405,10 +423,10 @@ class AICM_Conversation_Handler {
 			return '';
 		}
 
-		$parts      = [];
+		$parts       = array();
 		$total_chars = 0;
 		// Cache post titles/URLs to avoid duplicate get_the_title() calls.
-		$post_labels = [];
+		$post_labels = array();
 
 		foreach ( $chunks as $chunk ) {
 			$text = trim( (string) ( $chunk['chunk_text'] ?? '' ) );
@@ -464,11 +482,14 @@ class AICM_Conversation_Handler {
 	 */
 	private static function build_messages(
 		string $system_prompt,
-		array  $history,
+		array $history,
 		string $user_message
 	): array {
-		$messages   = [];
-		$messages[] = array( 'role' => 'system', 'content' => $system_prompt );
+		$messages   = array();
+		$messages[] = array(
+			'role'    => 'system',
+			'content' => $system_prompt,
+		);
 
 		foreach ( $history as $entry ) {
 			$role = $entry['role'] ?? '';
@@ -481,7 +502,10 @@ class AICM_Conversation_Handler {
 			);
 		}
 
-		$messages[] = array( 'role' => 'user', 'content' => $user_message );
+		$messages[] = array(
+			'role'    => 'user',
+			'content' => $user_message,
+		);
 
 		return $messages;
 	}
@@ -504,11 +528,11 @@ class AICM_Conversation_Handler {
 	 */
 	private static function build_messages_with_tool_result(
 		string $system_prompt,
-		array  $history,
+		array $history,
 		string $user_message,
-		array  $function_call,
+		array $function_call,
 		string $fn_name,
-		array  $fn_result
+		array $fn_result
 	): array {
 		$messages = self::build_messages( $system_prompt, $history, $user_message );
 
@@ -524,8 +548,8 @@ class AICM_Conversation_Handler {
 					'id'       => $tool_call_id,
 					'type'     => 'function',
 					'function' => array(
-						'name'      => (string) ( $function_call['name']      ?? $fn_name ),
-						'arguments' => (string) ( $function_call['arguments']  ?? '{}' ),
+						'name'      => (string) ( $function_call['name'] ?? $fn_name ),
+						'arguments' => (string) ( $function_call['arguments'] ?? '{}' ),
 					),
 				),
 			),
@@ -567,7 +591,11 @@ class AICM_Conversation_Handler {
 		$schema = is_array( $schema ) ? AICM_Field_Config::apply( $schema ) : $schema;
 		$hints  = is_array( $schema )
 			? AICM_Schema_Catalog::function_hints( $schema, $configured_types )
-			: array( 'post_types' => array(), 'taxonomy_hint' => '', 'meta_hint' => '' );
+			: array(
+				'post_types'    => array(),
+				'taxonomy_hint' => '',
+				'meta_hint'     => '',
+			);
 
 		$tax_hint  = '' !== $hints['taxonomy_hint'] ? " Available taxonomies and example term slugs by post type — {$hints['taxonomy_hint']}." : '';
 		$meta_hint = '' !== $hints['meta_hint'] ? " Available meta keys by post type — {$hints['meta_hint']}." : '';
@@ -575,22 +603,22 @@ class AICM_Conversation_Handler {
 		return array(
 			array(
 				'name'        => 'search_posts',
-				'description' => "Search published content on this WordPress website. "
+				'description' => 'Search published content on this WordPress website. '
 					. "Available post types: {$type_list}. "
-					. "Call this when the user wants to find, browse, list, or filter specific posts, "
-					. "pages, listings, products, or other content by type, keyword, category, "
-					. "tag, or custom field value.",
+					. 'Call this when the user wants to find, browse, list, or filter specific posts, '
+					. 'pages, listings, products, or other content by type, keyword, category, '
+					. 'tag, or custom field value.',
 				'parameters'  => array(
 					'type'       => 'object',
 					'properties' => array(
 
-						'post_type' => array(
+						'post_type'        => array(
 							'type'        => 'string',
 							'description' => "Post type slug to search. One of: {$type_list}. "
-								. "Omit to search all available types.",
+								. 'Omit to search all available types.',
 						),
 
-						'search' => array(
+						'search'           => array(
 							'type'        => 'string',
 							'description' => 'Keyword or phrase to search in post titles and content.',
 						),
@@ -614,7 +642,7 @@ class AICM_Conversation_Handler {
 							),
 						),
 
-						'meta_filters' => array(
+						'meta_filters'     => array(
 							'type'        => 'array',
 							'description' => 'Filter by custom field (post meta) values.' . $meta_hint,
 							'items'       => array(
@@ -637,23 +665,23 @@ class AICM_Conversation_Handler {
 							),
 						),
 
-						'orderby' => array(
+						'orderby'          => array(
 							'type'        => 'string',
 							'enum'        => array( 'date', 'modified', 'title', 'ID', 'meta_value', 'meta_value_num' ),
 							'description' => 'How to sort the results.',
 						),
 
-						'order' => array(
+						'order'            => array(
 							'type' => 'string',
 							'enum' => array( 'ASC', 'DESC' ),
 						),
 
-						'meta_key' => array(
+						'meta_key'         => array(
 							'type'        => 'string',
 							'description' => 'Meta key to sort by. Required when orderby is "meta_value" or "meta_value_num".',
 						),
 
-						'per_page' => array(
+						'per_page'         => array(
 							'type'        => 'integer',
 							'minimum'     => 1,
 							'maximum'     => 10,
@@ -688,8 +716,8 @@ class AICM_Conversation_Handler {
 		return array(
 			'error'    => "Unknown function: {$fn_name}",
 			'found'    => 0,
-			'posts'    => [],
-			'post_ids' => [],
+			'posts'    => array(),
+			'post_ids' => array(),
 		);
 	}
 
@@ -727,7 +755,7 @@ class AICM_Conversation_Handler {
 	 */
 	private static function merge_usage( array $a, array $b ): array {
 		return array(
-			'input_tokens'  => (int) ( $a['input_tokens']  ?? 0 ) + (int) ( $b['input_tokens']  ?? 0 ),
+			'input_tokens'  => (int) ( $a['input_tokens'] ?? 0 ) + (int) ( $b['input_tokens'] ?? 0 ),
 			'output_tokens' => (int) ( $a['output_tokens'] ?? 0 ) + (int) ( $b['output_tokens'] ?? 0 ),
 		);
 	}
@@ -743,7 +771,7 @@ class AICM_Conversation_Handler {
 	 */
 	private static function track_usage( AICM_LLM_Provider $provider, array $usage ): void {
 		$cost = $provider->estimate_cost(
-			(int) ( $usage['input_tokens']  ?? 0 ),
+			(int) ( $usage['input_tokens'] ?? 0 ),
 			(int) ( $usage['output_tokens'] ?? 0 )
 		);
 
@@ -768,9 +796,12 @@ class AICM_Conversation_Handler {
 		return array(
 			'reply'      => $message,
 			'session_id' => '' !== $session_id ? $session_id : wp_generate_uuid4(),
-			'sources'    => [],
+			'sources'    => array(),
 			'error'      => $message,
-			'usage'      => array( 'input_tokens' => 0, 'output_tokens' => 0 ),
+			'usage'      => array(
+				'input_tokens'  => 0,
+				'output_tokens' => 0,
+			),
 		);
 	}
 }
