@@ -113,7 +113,7 @@ class AICM_Schema_Discovery {
 	 *
 	 * @return array The generated schema array.
 	 */
-	public static function run(): array {
+	public static function run( bool $persist = true ): array {
 		$schema = array(
 			'site_name'            => get_bloginfo( 'name' ),
 			'site_url'             => home_url(),
@@ -152,7 +152,11 @@ class AICM_Schema_Discovery {
 		}
 
 		// Cache the result for immediate use + weekly cron re-use.
-		AICM_Schema_Cache::set( $schema );
+		// Preview mode (wizard "Detect") returns the schema without persisting,
+		// so a Rescan never silently changes the live config mid-wizard.
+		if ( $persist ) {
+			AICM_Schema_Cache::set( $schema );
+		}
 
 		/**
 		 * Fires after the schema has been discovered and cached.
