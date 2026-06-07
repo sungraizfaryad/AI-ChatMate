@@ -192,7 +192,7 @@ class AICM_Query_Builder {
 
 				$tax_query[] = [
 					'taxonomy' => $taxonomy,
-					'field'    => 'name',
+					'field'    => self::resolve_tax_field( $taxonomy, $term ),
 					'terms'    => $term,
 				];
 			}
@@ -259,6 +259,23 @@ class AICM_Query_Builder {
 		}
 
 		return $query_args;
+	}
+
+	/**
+	 * Decide whether a taxonomy term value is a slug or a display name.
+	 *
+	 * Schema injection feeds the AI real term slugs, but admins/users may also
+	 * type display names. Prefer 'slug' when the value resolves to an existing
+	 * term slug; otherwise fall back to 'name'. Without this, AI-emitted slugs
+	 * silently match nothing (WP_Query 'name' matches the display name only).
+	 *
+	 * @param string $taxonomy Validated taxonomy slug.
+	 * @param string $term     Term value supplied by the AI.
+	 * @return string 'slug' or 'name'.
+	 */
+	private static function resolve_tax_field( string $taxonomy, string $term ): string {
+		$by_slug = get_term_by( 'slug', $term, $taxonomy );
+		return ( $by_slug instanceof WP_Term ) ? 'slug' : 'name';
 	}
 
 	/**
