@@ -552,6 +552,12 @@ class AICM_REST_API {
 		if ( isset( $params['logging_enabled'] ) ) {
 			$updated['logging_enabled'] = (bool) $params['logging_enabled'];
 		}
+		if ( isset( $params['semantic_mode'] ) ) {
+			$updated['semantic_mode'] = (bool) $params['semantic_mode'];
+		}
+		if ( isset( $params['widget_enabled'] ) ) {
+			$updated['widget_enabled'] = (bool) $params['widget_enabled'];
+		}
 
 		// Array field — post types.
 		if ( isset( $params['index_post_types'] ) && is_array( $params['index_post_types'] ) ) {

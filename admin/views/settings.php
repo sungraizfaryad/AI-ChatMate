@@ -47,6 +47,12 @@ $logging         = ! empty( $settings['logging_enabled'] );
 
 	<h1><?php echo esc_html__( 'AI ChatMate — Settings', 'ai-chatmate' ); ?></h1>
 
+	<p>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=ai-chatmate&onboarding=1' ) ); ?>" class="button">
+			<?php echo esc_html__( 'Re-run setup wizard', 'ai-chatmate' ); ?>
+		</a>
+	</p>
+
 	<div id="aicm-notice" class="notice" style="display:none;"></div>
 
 	<form id="aicm-settings-form" novalidate>
