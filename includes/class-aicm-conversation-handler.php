@@ -360,6 +360,7 @@ class AICM_Conversation_Handler {
 		// Inject the discovered content structure so the model emits valid
 		// post types, taxonomy slugs, and meta keys instead of guessing.
 		$schema  = AICM_Schema_Cache::get();
+		$schema  = is_array( $schema ) ? AICM_Field_Config::apply( $schema ) : $schema;
 		$types   = (array) AI_ChatMate::get_setting( 'index_post_types', array( 'post', 'page' ) );
 		$catalog = is_array( $schema ) ? AICM_Schema_Catalog::build_prompt_block( $schema, $types ) : '';
 
@@ -563,6 +564,7 @@ class AICM_Conversation_Handler {
 		$type_list = implode( ', ', $configured_types );
 
 		$schema = AICM_Schema_Cache::get();
+		$schema = is_array( $schema ) ? AICM_Field_Config::apply( $schema ) : $schema;
 		$hints  = is_array( $schema )
 			? AICM_Schema_Catalog::function_hints( $schema, $configured_types )
 			: array( 'post_types' => array(), 'taxonomy_hint' => '', 'meta_hint' => '' );
