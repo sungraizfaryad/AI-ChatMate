@@ -329,6 +329,17 @@ class AICM_REST_API {
 	 * @return bool|WP_Error
 	 */
 	public function chat_permission_check( WP_REST_Request $request ): bool|WP_Error {
+		// Opt-in gate: the public chat is OFF until the admin explicitly enables
+		// the widget. This is what stops an anonymous visitor from spending the
+		// site owner's API budget the moment the plugin is active.
+		if ( ! (bool) AI_ChatMate::get_setting( 'widget_enabled', false ) ) {
+			return new WP_Error(
+				'aicm_chat_disabled',
+				__( 'The chat assistant is not enabled on this site.', 'ai-chatmate' ),
+				array( 'status' => 403 )
+			);
+		}
+
 		// Verify the nonce that the chat widget JS sends with every request.
 		$nonce = sanitize_text_field( wp_unslash( $request->get_header( 'X-AICM-Nonce' ) ?? '' ) );
 
@@ -340,10 +351,27 @@ class AICM_REST_API {
 			);
 		}
 
+		// Daily budget kill-switch: once today's API spend reaches the configured
+		// daily budget, the bot pauses until tomorrow. Protects against bill shock.
+		if ( AICM_Billing::daily_budget_reached() ) {
+			return new WP_Error(
+				'aicm_budget_reached',
+				__( 'The chat assistant is temporarily unavailable. Please try again later.', 'ai-chatmate' ),
+				array( 'status' => 503 )
+			);
+		}
+
 		// Rate limiting — max messages per minute per IP.
 		$rate_check = $this->check_rate_limit();
 		if ( is_wp_error( $rate_check ) ) {
 			return $rate_check;
+		}
+
+		// Per-IP per-day message cap — a hard ceiling on how many messages one
+		// visitor can send in a day (0 = unlimited).
+		$daily_check = $this->check_daily_cap();
+		if ( is_wp_error( $daily_check ) ) {
+			return $daily_check;
 		}
 
 		return true;
@@ -540,9 +568,15 @@ class AICM_REST_API {
 			$updated['session_token_cap'] = max( 500, min( 32000, (int) $params['session_token_cap'] ) );
 		}
 
-		// Float field.
+		// Float fields.
 		if ( isset( $params['monthly_budget'] ) ) {
 			$updated['monthly_budget'] = max( 0.00, (float) $params['monthly_budget'] );
+		}
+		if ( isset( $params['daily_budget'] ) ) {
+			$updated['daily_budget'] = max( 0.00, (float) $params['daily_budget'] );
+		}
+		if ( isset( $params['daily_msg_cap'] ) ) {
+			$updated['daily_msg_cap'] = max( 0, (int) $params['daily_msg_cap'] );
 		}
 
 		// Boolean fields.
@@ -1029,6 +1063,44 @@ class AICM_REST_API {
 
 		// Increment counter — expires after 60 seconds (one minute window).
 		set_transient( $transient_key, $current + 1, MINUTE_IN_SECONDS );
+
+		return true;
+	}
+
+	/**
+	 * Check and increment the per-IP per-day message cap for /chat.
+	 *
+	 * A hard ceiling on how many messages a single visitor can send in one day
+	 * (0 = unlimited). IPs are never stored — they are one-way hashed, the same
+	 * way as the per-minute limiter.
+	 *
+	 * @return true|WP_Error True if within the cap, WP_Error if exceeded.
+	 */
+	private function check_daily_cap(): true|WP_Error {
+		$cap = (int) AI_ChatMate::get_setting( 'daily_msg_cap', 0 );
+
+		if ( $cap <= 0 ) {
+			return true;
+		}
+
+		$raw_ip = isset( $_SERVER['REMOTE_ADDR'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+			: 'unknown';
+
+		$ip_hash       = wp_hash( $raw_ip . wp_salt( 'nonce' ) );
+		$transient_key = 'aicm_dc_' . gmdate( 'Ymd' ) . '_' . $ip_hash;
+
+		$current = (int) get_transient( $transient_key );
+
+		if ( $current >= $cap ) {
+			return new WP_Error(
+				'aicm_daily_cap',
+				__( 'You have reached the daily message limit. Please try again tomorrow.', 'ai-chatmate' ),
+				array( 'status' => 429 )
+			);
+		}
+
+		set_transient( $transient_key, $current + 1, DAY_IN_SECONDS );
 
 		return true;
 	}

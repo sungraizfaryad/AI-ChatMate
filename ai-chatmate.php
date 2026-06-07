@@ -158,6 +158,7 @@ final class AI_ChatMate {
 		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-encryption.php';
 		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-field-config.php';
 		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-onboarding.php';
+		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-billing.php';
 
 		// Schema classes — needed by REST API and cron handlers.
 		require_once AICM_PLUGIN_DIR . 'includes/schema/class-aicm-schema-cache.php';
