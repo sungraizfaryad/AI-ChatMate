@@ -209,8 +209,8 @@ class AICM_Chunker {
 		$search_start = max( $min_start + 1, $search_end - self::SEARCH_WINDOW );
 
 		// Extract only the search window to avoid scanning the full text.
-		$window      = mb_substr( $text, $search_start, $search_end - $search_start );
-		$window_len  = mb_strlen( $window );
+		$window     = mb_substr( $text, $search_start, $search_end - $search_start );
+		$window_len = mb_strlen( $window );
 
 		if ( 0 === $window_len ) {
 			return $search_end;

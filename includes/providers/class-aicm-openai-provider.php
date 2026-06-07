@@ -37,10 +37,10 @@ class AICM_OpenAI_Provider implements AICM_LLM_Provider {
 	// Constants
 	// -------------------------------------------------------------------------
 
-	private const API_BASE          = 'https://api.openai.com/v1';
-	private const ENDPOINT_CHAT     = self::API_BASE . '/chat/completions';
-	private const ENDPOINT_EMBED    = self::API_BASE . '/embeddings';
-	private const ENDPOINT_MODELS   = self::API_BASE . '/models';
+	private const API_BASE        = 'https://api.openai.com/v1';
+	private const ENDPOINT_CHAT   = self::API_BASE . '/chat/completions';
+	private const ENDPOINT_EMBED  = self::API_BASE . '/embeddings';
+	private const ENDPOINT_MODELS = self::API_BASE . '/models';
 
 	/**
 	 * Pricing per 1M tokens (USD) — update when OpenAI changes pricing.
@@ -48,10 +48,22 @@ class AICM_OpenAI_Provider implements AICM_LLM_Provider {
 	 * @var array<string, array{input: float, output: float}>
 	 */
 	private const PRICING = array(
-		'gpt-4o-mini'              => array( 'input' => 0.15,  'output' => 0.60  ),
-		'gpt-4o'                   => array( 'input' => 2.50,  'output' => 10.00 ),
-		'text-embedding-3-small'   => array( 'input' => 0.02,  'output' => 0.00  ),
-		'text-embedding-3-large'   => array( 'input' => 0.13,  'output' => 0.00  ),
+		'gpt-4o-mini'            => array(
+			'input'  => 0.15,
+			'output' => 0.60,
+		),
+		'gpt-4o'                 => array(
+			'input'  => 2.50,
+			'output' => 10.00,
+		),
+		'text-embedding-3-small' => array(
+			'input'  => 0.02,
+			'output' => 0.00,
+		),
+		'text-embedding-3-large' => array(
+			'input'  => 0.13,
+			'output' => 0.00,
+		),
 	);
 
 	// -------------------------------------------------------------------------
@@ -74,9 +86,9 @@ class AICM_OpenAI_Provider implements AICM_LLM_Provider {
 	 * property beyond the lifetime of this object.
 	 */
 	public function __construct() {
-		$encrypted_key        = (string) get_option( 'aicm_api_key_openai', '' );
-		$this->api_key        = AICM_Encryption::decrypt( $encrypted_key );
-		$this->chat_model     = (string) AI_ChatMate::get_setting( 'chat_model', 'gpt-4o-mini' );
+		$encrypted_key         = (string) get_option( 'aicm_api_key_openai', '' );
+		$this->api_key         = AICM_Encryption::decrypt( $encrypted_key );
+		$this->chat_model      = (string) AI_ChatMate::get_setting( 'chat_model', 'gpt-4o-mini' );
 		$this->embedding_model = (string) AI_ChatMate::get_setting( 'embedding_model', 'text-embedding-3-small' );
 	}
 
@@ -87,19 +99,22 @@ class AICM_OpenAI_Provider implements AICM_LLM_Provider {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function chat_completion( array $messages, array $functions = [], array $options = [] ): array {
+	public function chat_completion( array $messages, array $functions = array(), array $options = array() ): array {
 		$empty_result = array(
 			'content'       => null,
 			'function_call' => null,
-			'usage'         => array( 'input_tokens' => 0, 'output_tokens' => 0 ),
+			'usage'         => array(
+				'input_tokens'  => 0,
+				'output_tokens' => 0,
+			),
 		);
 
 		if ( '' === $this->api_key ) {
 			return $empty_result;
 		}
 
-		$model       = $options['model']       ?? $this->chat_model;
-		$max_tokens  = $options['max_tokens']  ?? 1024;
+		$model       = $options['model'] ?? $this->chat_model;
+		$max_tokens  = $options['max_tokens'] ?? 1024;
 		$temperature = $options['temperature'] ?? 0.7;
 
 		$body = array(
@@ -128,14 +143,14 @@ class AICM_OpenAI_Provider implements AICM_LLM_Provider {
 		}
 
 		$choice  = $response['choices'][0] ?? null;
-		$message = $choice['message']      ?? null;
-		$usage   = $response['usage']      ?? array();
+		$message = $choice['message'] ?? null;
+		$usage   = $response['usage'] ?? array();
 
 		$result = array(
 			'content'       => null,
 			'function_call' => null,
 			'usage'         => array(
-				'input_tokens'  => (int) ( $usage['prompt_tokens']     ?? 0 ),
+				'input_tokens'  => (int) ( $usage['prompt_tokens'] ?? 0 ),
 				'output_tokens' => (int) ( $usage['completion_tokens'] ?? 0 ),
 			),
 		);
@@ -151,8 +166,8 @@ class AICM_OpenAI_Provider implements AICM_LLM_Provider {
 			$tool_call = $message['tool_calls'][0];
 			if ( 'function' === ( $tool_call['type'] ?? '' ) ) {
 				$result['function_call'] = array(
-					'name'      => $tool_call['function']['name']      ?? '',
-					'arguments' => $tool_call['function']['arguments']  ?? '{}',
+					'name'      => $tool_call['function']['name'] ?? '',
+					'arguments' => $tool_call['function']['arguments'] ?? '{}',
 				);
 			}
 		}
@@ -267,7 +282,10 @@ class AICM_OpenAI_Provider implements AICM_LLM_Provider {
 	 * {@inheritdoc}
 	 */
 	public function estimate_cost( int $input_tokens, int $output_tokens ): float {
-		$pricing = self::PRICING[ $this->chat_model ] ?? array( 'input' => 0.00, 'output' => 0.00 );
+		$pricing = self::PRICING[ $this->chat_model ] ?? array(
+			'input'  => 0.00,
+			'output' => 0.00,
+		);
 
 		return round(
 			( $input_tokens / 1_000_000 ) * $pricing['input']

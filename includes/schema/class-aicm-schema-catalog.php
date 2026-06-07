@@ -177,7 +177,7 @@ class AICM_Schema_Catalog {
 			}
 
 			$lines[] = "- {$key} [{$desc}]";
-			$i++;
+			++$i;
 		}
 		return $lines;
 	}

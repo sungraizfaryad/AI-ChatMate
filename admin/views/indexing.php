@@ -38,8 +38,8 @@ $index_status = get_option(
 );
 
 $total_chunks = (int) ( $index_status['total_chunks'] ?? 0 );
-$pending      = (int) ( $index_status['pending']      ?? 0 );
-$is_running   = (bool) ( $index_status['is_running']  ?? false );
+$pending      = (int) ( $index_status['pending'] ?? 0 );
+$is_running   = (bool) ( $index_status['is_running'] ?? false );
 $last_indexed = $index_status['last_indexed'] ?? null;
 
 // Count failed queue items for the warning display.
@@ -136,8 +136,8 @@ foreach ( $configured_types as $pt ) {
 			<p>
 				<?php
 				printf(
-					/* translators: %d: number of failed queue items */
 					esc_html(
+						/* translators: %d: number of failed queue items */
 						_n(
 							'%d post failed to index after 3 attempts. Starting a full re-index will retry these posts.',
 							'%d posts failed to index after 3 attempts. Starting a full re-index will retry these posts.',
@@ -209,9 +209,9 @@ foreach ( $configured_types as $pt ) {
 
 	function escHtml( str ) {
 		return str.replace( /&/g, '&amp;' )
-		          .replace( /</g, '&lt;' )
-		          .replace( />/g, '&gt;' )
-		          .replace( /"/g, '&quot;' );
+					.replace( /</g, '&lt;' )
+					.replace( />/g, '&gt;' )
+					.replace( /"/g, '&quot;' );
 	}
 
 	// ── Set the UI to "running" or "idle" state ──────────────────────────

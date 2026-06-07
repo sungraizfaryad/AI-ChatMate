@@ -53,8 +53,8 @@ class AICM_Billing {
 		$day   = '' !== $day ? $day : gmdate( 'Y-m-d' );
 		$month = '' !== $month ? $month : gmdate( 'Y-m' );
 
-		$daily = get_option( self::DAILY_OPTION, array() );
-		$daily = is_array( $daily ) ? $daily : array();
+		$daily         = get_option( self::DAILY_OPTION, array() );
+		$daily         = is_array( $daily ) ? $daily : array();
 		$daily[ $day ] = round( (float) ( $daily[ $day ] ?? 0.0 ) + $cost, 6 );
 
 		// Prune old days so the option never grows without bound.
@@ -64,8 +64,8 @@ class AICM_Billing {
 		}
 		update_option( self::DAILY_OPTION, $daily, false );
 
-		$monthly = get_option( self::MONTHLY_OPTION, array() );
-		$monthly = is_array( $monthly ) ? $monthly : array();
+		$monthly           = get_option( self::MONTHLY_OPTION, array() );
+		$monthly           = is_array( $monthly ) ? $monthly : array();
 		$monthly[ $month ] = round( (float) ( $monthly[ $month ] ?? 0.0 ) + $cost, 6 );
 		update_option( self::MONTHLY_OPTION, $monthly, false );
 	}

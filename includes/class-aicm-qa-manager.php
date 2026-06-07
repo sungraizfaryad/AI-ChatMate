@@ -71,7 +71,7 @@ class AICM_QA_Manager {
 			ARRAY_A
 		);
 
-		return is_array( $rows ) ? $rows : [];
+		return is_array( $rows ) ? $rows : array();
 	}
 
 	/**
@@ -125,8 +125,8 @@ class AICM_QA_Manager {
 		$table = $wpdb->prefix . 'aicm_qa';
 
 		$question  = sanitize_text_field( wp_unslash( (string) ( $data['question'] ?? '' ) ) );
-		$answer    = sanitize_textarea_field( wp_unslash( (string) ( $data['answer']   ?? '' ) ) );
-		$priority  = max( 1, min( 100, (int) ( $data['priority']  ?? 50 ) ) );
+		$answer    = sanitize_textarea_field( wp_unslash( (string) ( $data['answer'] ?? '' ) ) );
+		$priority  = max( 1, min( 100, (int) ( $data['priority'] ?? 50 ) ) );
 		$is_active = (int) (bool) ( $data['is_active'] ?? 1 );
 
 		if ( '' === $question || '' === $answer ) {
@@ -267,8 +267,8 @@ class AICM_QA_Manager {
 	 */
 	public static function find_match(
 		AICM_LLM_Provider $provider,
-		string            $query,
-		float             $threshold = self::QA_MATCH_THRESHOLD
+		string $query,
+		float $threshold = self::QA_MATCH_THRESHOLD
 	): ?array {
 		global $wpdb;
 

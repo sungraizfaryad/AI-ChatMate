@@ -49,8 +49,8 @@ class AICM_Content_Fetcher {
 	 */
 	public static function get_post_ids(
 		string $post_type,
-		int    $batch_size,
-		int    $offset = 0
+		int $batch_size,
+		int $offset = 0
 	): array {
 		$query = new WP_Query(
 			array(

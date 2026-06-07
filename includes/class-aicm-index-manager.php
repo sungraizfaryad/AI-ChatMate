@@ -300,7 +300,7 @@ class AICM_Index_Manager {
 				$wpdb->update(
 					$table,
 					array( 'status' => 'pending' ),
-					array( 'id'     => (int) $row->id ),
+					array( 'id' => (int) $row->id ),
 					array( '%s' ),
 					array( '%d' )
 				);

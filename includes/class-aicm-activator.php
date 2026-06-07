@@ -102,8 +102,8 @@ class AICM_Activator {
 		// question_embedding: same binary format as chunks.embedding.
 		// priority: 1 (highest) to 100 (lowest). Default 50.
 		// -----------------------------------------------------------------
-		$table_qa  = $wpdb->prefix . 'aicm_qa';
-		$sql_qa    = "CREATE TABLE {$table_qa} (
+		$table_qa = $wpdb->prefix . 'aicm_qa';
+		$sql_qa   = "CREATE TABLE {$table_qa} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			question text NOT NULL,
 			answer longtext NOT NULL,
@@ -226,18 +226,18 @@ class AICM_Activator {
 		);
 
 		// Separate option for API keys (encrypted). Never stored with other settings.
-		add_option( 'aicm_api_key_openai',    '' );
+		add_option( 'aicm_api_key_openai', '' );
 		add_option( 'aicm_api_key_anthropic', '' );
-		add_option( 'aicm_api_key_google',    '' );
+		add_option( 'aicm_api_key_google', '' );
 
 		// Index status — updated by the background processor.
 		add_option(
 			'aicm_index_status',
 			array(
-				'total_chunks'  => 0,
-				'pending'       => 0,
-				'is_running'    => false,
-				'last_indexed'  => null,
+				'total_chunks' => 0,
+				'pending'      => 0,
+				'is_running'   => false,
+				'last_indexed' => null,
 			)
 		);
 	}

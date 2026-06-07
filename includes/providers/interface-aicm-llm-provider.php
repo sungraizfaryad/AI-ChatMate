@@ -51,7 +51,7 @@ interface AICM_LLM_Provider {
 	 *   }
 	 * }
 	 */
-	public function chat_completion( array $messages, array $functions = [], array $options = [] ): array;
+	public function chat_completion( array $messages, array $functions = array(), array $options = array() ): array;
 
 	/**
 	 * Generate an embedding vector for a single text string.

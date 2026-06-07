@@ -143,9 +143,9 @@ $last_generated = AICM_Schema_Cache::last_generated_at();
 												<td><code><?php echo esc_html( $tax_name ); ?></code></td>
 												<td>
 													<?php
-													$terms   = $tax_data['terms'] ?? array();
-													$sample  = array_slice( $terms, 0, 8 );
-													$trunc   = ! empty( $tax_data['truncated'] );
+													$terms  = $tax_data['terms'] ?? array();
+													$sample = array_slice( $terms, 0, 8 );
+													$trunc  = ! empty( $tax_data['truncated'] );
 													echo esc_html( implode( ', ', $sample ) );
 													if ( $trunc || count( $terms ) > 8 ) {
 														printf(

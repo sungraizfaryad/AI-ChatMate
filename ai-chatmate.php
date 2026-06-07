@@ -3,7 +3,7 @@
  * Plugin Name: AI ChatMate
  * Plugin URI:  https://wordpress.org/plugins/ai-chatmate/
  * Description: AI site assistant that turns natural-language questions into a safe search of your own WordPress content: posts, listings, and products by type, taxonomy, and custom field. Uses your OpenAI API key.
- * Version:     2.0.0-dev
+ * Version:     2.0.0
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author:      Sungraiz Faryad
@@ -22,10 +22,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin version and path constants.
-define( 'AICM_VERSION',       '2.0.0-dev' );
-define( 'AICM_PLUGIN_FILE',   __FILE__ );
-define( 'AICM_PLUGIN_DIR',    plugin_dir_path( __FILE__ ) );
-define( 'AICM_PLUGIN_URL',    plugin_dir_url( __FILE__ ) );
+define( 'AICM_VERSION', '2.0.0' );
+define( 'AICM_PLUGIN_FILE', __FILE__ );
+define( 'AICM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'AICM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'AICM_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
 /**
@@ -35,7 +35,7 @@ define( 'AICM_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
  * and referenced in admin notices without hard-coded strings.
  */
 define( 'AICM_REQUIRED_PHP', '8.0' );
-define( 'AICM_REQUIRED_WP',  '6.0' );
+define( 'AICM_REQUIRED_WP', '6.0' );
 
 // -------------------------------------------------------------------------
 // Activation / deactivation hooks — registered before any class is loaded.
@@ -167,9 +167,9 @@ final class AI_ChatMate {
 		require_once AICM_PLUGIN_DIR . 'includes/schema/class-aicm-schema-catalog.php';
 
 		// Indexing pipeline — loaded on every request because:
-		//  a) WP-Cron fires via HTTP on any page load.
-		//  b) Auto-sync hooks (save_post, before_delete_post) fire everywhere.
-		//  c) REST /index/start calls AICM_Index_Manager from any origin.
+		// a) WP-Cron fires via HTTP on any page load.
+		// b) Auto-sync hooks (save_post, before_delete_post) fire everywhere.
+		// c) REST /index/start calls AICM_Index_Manager from any origin.
 		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-content-fetcher.php';
 		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-text-extractor.php';
 		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-chunker.php';
@@ -222,7 +222,7 @@ final class AI_ChatMate {
 
 		// Cron action handlers — must be registered on all requests so WP-Cron
 		// can call them via HTTP when they are scheduled to fire.
-		add_action( 'aicm_weekly_schema_scan',  array( $this, 'run_weekly_schema_scan' ) );
+		add_action( 'aicm_weekly_schema_scan', array( $this, 'run_weekly_schema_scan' ) );
 		add_action( 'aicm_process_index_queue', array( $this, 'process_index_queue' ) );
 
 		// Post lifecycle hooks — auto-sync must fire on every request type

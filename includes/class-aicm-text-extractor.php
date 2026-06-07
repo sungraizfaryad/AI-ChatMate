@@ -74,18 +74,18 @@ class AICM_Text_Extractor {
 	 *                      Produced by AICM_Content_Fetcher::get_post_data().
 	 * @return string       Plain text. Empty string if the post has no content.
 	 */
-	public static function extract( WP_Post $post, array $meta = [] ): string {
+	public static function extract( WP_Post $post, array $meta = array() ): string {
 		$parts = array();
 
 		// 1. Title — always first so it appears at the top of the text
-		//    and in every chunk's context prefix.
+		// and in every chunk's context prefix.
 		$title = trim( $post->post_title );
 		if ( '' !== $title ) {
 			$parts[] = $title;
 		}
 
 		// 2. Excerpt — skip empty or auto-generated excerpts.
-		//    post_excerpt is empty string when WordPress would auto-generate it.
+		// post_excerpt is empty string when WordPress would auto-generate it.
 		$excerpt = trim( $post->post_excerpt );
 		if ( '' !== $excerpt ) {
 			$parts[] = self::clean_html( $excerpt );
