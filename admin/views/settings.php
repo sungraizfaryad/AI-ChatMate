@@ -86,14 +86,8 @@ $logging         = ! empty( $settings['logging_enabled'] );
 				</th>
 				<td>
 					<select id="aicm-active-provider" name="active_provider">
-						<option value="openai"    <?php selected( $active_provider, 'openai' ); ?>>
-							<?php echo esc_html__( 'OpenAI (recommended)', 'ai-chatmate' ); ?>
-						</option>
-						<option value="anthropic" <?php selected( $active_provider, 'anthropic' ); ?> disabled>
-							<?php echo esc_html__( 'Anthropic Claude (coming soon)', 'ai-chatmate' ); ?>
-						</option>
-						<option value="google"    <?php selected( $active_provider, 'google' ); ?> disabled>
-							<?php echo esc_html__( 'Google Gemini (coming soon)', 'ai-chatmate' ); ?>
+						<option value="openai" <?php selected( $active_provider, 'openai' ); ?>>
+							<?php echo esc_html__( 'OpenAI', 'ai-chatmate' ); ?>
 						</option>
 					</select>
 				</td>
