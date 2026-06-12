@@ -45,7 +45,7 @@ $logging         = ! empty( $settings['logging_enabled'] );
 ?>
 <div class="wrap" id="aicm-settings-page">
 
-	<h1><?php echo esc_html__( 'AI ChatMate — Settings', 'ai-chatmate' ); ?></h1>
+	<h1><?php echo esc_html__( 'Conciera — Settings', 'ai-chatmate' ); ?></h1>
 
 	<p>
 		<a href="<?php echo esc_url( admin_url( 'admin.php?page=ai-chatmate&onboarding=1' ) ); ?>" class="button">
@@ -53,7 +53,49 @@ $logging         = ! empty( $settings['logging_enabled'] );
 		</a>
 	</p>
 
+	<?php
+	// Widget visibility status — the admin must always know whether the chat
+	// widget is actually showing on the frontend, and if not, exactly why.
+	require_once AICM_PLUGIN_DIR . 'public/class-aicm-frontend.php';
+	$aicm_widget_status = AICM_Frontend::status();
+
+	if ( $aicm_widget_status['enabled'] && ! $aicm_widget_status['ready'] ) :
+		?>
+		<div class="notice notice-warning inline" style="margin:0 0 16px;">
+			<p>
+				<strong><?php echo esc_html__( 'The chat widget will NOT display on your site yet.', 'ai-chatmate' ); ?></strong>
+				<?php if ( 'indexing' === $aicm_widget_status['reason'] ) : ?>
+					<?php echo esc_html__( 'The first content indexing run has not finished — the widget stays hidden until it completes, so visitors never get answers from a half-built index.', 'ai-chatmate' ); ?>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=ai-chatmate-indexing' ) ); ?>">
+						<?php echo esc_html__( 'Check indexing progress', 'ai-chatmate' ); ?>
+					</a>
+				<?php elseif ( 'index_empty' === $aicm_widget_status['reason'] ) : ?>
+					<?php echo esc_html__( 'Semantic Q&A is enabled and the content index is still empty. The widget appears automatically once indexing is complete.', 'ai-chatmate' ); ?>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=ai-chatmate-indexing' ) ); ?>">
+						<?php echo esc_html__( 'Run Content Indexing now', 'ai-chatmate' ); ?>
+					</a>
+				<?php else : ?>
+					<?php echo esc_html__( 'No API key is saved for the active AI provider. Add your API key below — the widget appears automatically once it is saved.', 'ai-chatmate' ); ?>
+				<?php endif; ?>
+			</p>
+		</div>
+	<?php elseif ( $aicm_widget_status['enabled'] && $aicm_widget_status['ready'] ) : ?>
+		<div class="notice notice-success inline" style="margin:0 0 16px;">
+			<p><?php echo esc_html__( 'The chat widget is live on your site.', 'ai-chatmate' ); ?></p>
+		</div>
+	<?php endif; ?>
+
 	<div id="aicm-notice" class="notice" style="display:none;"></div>
+
+	<!-- ── Settings tabs ─────────────────────────────────────────────────── -->
+	<h2 class="nav-tab-wrapper aicm-tabs">
+		<a href="#provider" class="nav-tab nav-tab-active" data-tab="provider"><?php echo esc_html__( 'AI Provider', 'ai-chatmate' ); ?></a>
+		<a href="#behaviour" class="nav-tab" data-tab="behaviour"><?php echo esc_html__( 'AI Behaviour', 'ai-chatmate' ); ?></a>
+		<a href="#widget" class="nav-tab" data-tab="widget"><?php echo esc_html__( 'Chat Widget', 'ai-chatmate' ); ?></a>
+		<a href="#limits" class="nav-tab" data-tab="limits"><?php echo esc_html__( 'Limits & Budget', 'ai-chatmate' ); ?></a>
+		<a href="#indexing" class="nav-tab" data-tab="indexing"><?php echo esc_html__( 'Indexing', 'ai-chatmate' ); ?></a>
+		<a href="#privacy" class="nav-tab" data-tab="privacy"><?php echo esc_html__( 'Privacy', 'ai-chatmate' ); ?></a>
+	</h2>
 
 	<form id="aicm-settings-form" novalidate>
 
@@ -66,6 +108,7 @@ $logging         = ! empty( $settings['logging_enabled'] );
 		<!-- ================================================================ -->
 		<!-- Section 1: AI Provider & API Keys                                -->
 		<!-- ================================================================ -->
+		<div class="aicm-tab-panel is-active" data-tab="provider">
 		<h2 class="title"><?php echo esc_html__( 'AI Provider & API Keys', 'ai-chatmate' ); ?></h2>
 		<p class="description">
 			<?php
@@ -170,9 +213,12 @@ $logging         = ! empty( $settings['logging_enabled'] );
 
 		<hr>
 
+		</div><!-- /provider panel -->
+
 		<!-- ================================================================ -->
 		<!-- Section 2: AI Behaviour                                          -->
 		<!-- ================================================================ -->
+		<div class="aicm-tab-panel" data-tab="behaviour">
 		<h2 class="title"><?php echo esc_html__( 'AI Behaviour', 'ai-chatmate' ); ?></h2>
 
 		<table class="form-table" role="presentation">
@@ -198,13 +244,37 @@ $logging         = ! empty( $settings['logging_enabled'] );
 				</td>
 			</tr>
 
+			<tr>
+				<th scope="row">
+					<label for="aicm-site-context">
+						<?php echo esc_html__( 'About this website', 'ai-chatmate' ); ?>
+					</label>
+				</th>
+				<td>
+					<textarea
+						id="aicm-site-context"
+						name="site_context"
+						class="large-text"
+						rows="5"
+						maxlength="2000"
+						placeholder="<?php echo esc_attr__( 'e.g. We are a luxury real-estate agency selling villas and apartments in Portugal and Spain. Visitors usually search by location, budget, bedrooms, and property type.', 'ai-chatmate' ); ?>"
+					><?php echo esc_textarea( (string) ( $settings['site_context'] ?? '' ) ); ?></textarea>
+					<p class="description">
+						<?php echo esc_html__( 'Optional but highly recommended. Tell the assistant what this website is about, what you offer, and what visitors usually look for. This is given to the AI as background context, so its answers and follow-up questions match your business.', 'ai-chatmate' ); ?>
+					</p>
+				</td>
+			</tr>
+
 		</table>
 
 		<hr>
 
+		</div><!-- /behaviour panel -->
+
 		<!-- ================================================================ -->
 		<!-- Section 3: Chat Widget                                           -->
 		<!-- ================================================================ -->
+		<div class="aicm-tab-panel" data-tab="widget">
 		<h2 class="title"><?php echo esc_html__( 'Chat Widget', 'ai-chatmate' ); ?></h2>
 
 		<table class="form-table" role="presentation">
@@ -226,6 +296,48 @@ $logging         = ! empty( $settings['logging_enabled'] );
 					>
 					<p class="description">
 						<?php echo esc_html__( 'The first message shown when a visitor opens the chat.', 'ai-chatmate' ); ?>
+					</p>
+				</td>
+			</tr>
+
+			<tr>
+				<th scope="row">
+					<?php echo esc_html__( 'Lead Capture', 'ai-chatmate' ); ?>
+				</th>
+				<td>
+					<label for="aicm-lead-capture">
+						<input
+							type="checkbox"
+							id="aicm-lead-capture"
+							name="lead_capture"
+							value="1"
+							<?php checked( ! empty( $settings['lead_capture'] ?? false ) ); ?>
+						>
+						<?php echo esc_html__( 'Offer a callback when the assistant cannot help', 'ai-chatmate' ); ?>
+					</label>
+					<p class="description">
+						<?php echo esc_html__( 'When the assistant cannot find what a visitor needs, it politely offers to arrange a callback: it collects their email (required), phone and preferred time, then emails the request to the address below. Limits: one request per conversation, 20 per day.', 'ai-chatmate' ); ?>
+					</p>
+				</td>
+			</tr>
+
+			<tr>
+				<th scope="row">
+					<label for="aicm-lead-email">
+						<?php echo esc_html__( 'Send Callback Requests To', 'ai-chatmate' ); ?>
+					</label>
+				</th>
+				<td>
+					<input
+						type="email"
+						id="aicm-lead-email"
+						name="lead_email"
+						class="regular-text"
+						value="<?php echo esc_attr( (string) ( $settings['lead_email'] ?? '' ) ); ?>"
+						placeholder="<?php echo esc_attr( (string) get_option( 'admin_email', '' ) ); ?>"
+					>
+					<p class="description">
+						<?php echo esc_html__( 'Leave empty to use the site admin email. Replying to a callback email goes directly to the visitor.', 'ai-chatmate' ); ?>
 					</p>
 				</td>
 			</tr>
@@ -268,9 +380,12 @@ $logging         = ! empty( $settings['logging_enabled'] );
 
 		<hr>
 
+		</div><!-- /widget panel -->
+
 		<!-- ================================================================ -->
 		<!-- Section 4: Rate Limiting & Budget                                -->
 		<!-- ================================================================ -->
+		<div class="aicm-tab-panel" data-tab="limits">
 		<h2 class="title"><?php echo esc_html__( 'Rate Limiting & Budget', 'ai-chatmate' ); ?></h2>
 
 		<table class="form-table" role="presentation">
@@ -388,9 +503,81 @@ $logging         = ! empty( $settings['logging_enabled'] );
 
 		<hr>
 
+		</div><!-- /limits panel -->
+
 		<!-- ================================================================ -->
-		<!-- Section 5: Privacy / GDPR                                        -->
+		<!-- Section 5: Indexing                                              -->
 		<!-- ================================================================ -->
+		<div class="aicm-tab-panel" data-tab="indexing">
+		<h2 class="title"><?php echo esc_html__( 'Content Indexing', 'ai-chatmate' ); ?></h2>
+		<p class="description">
+			<?php echo esc_html__( 'These options control how the content indexing queue is processed. Choose them here, then start a run from the Content Indexing page — options are locked while a run is in progress.', 'ai-chatmate' ); ?>
+		</p>
+
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php echo esc_html__( 'Processing mode', 'ai-chatmate' ); ?></th>
+				<td>
+					<?php $aicm_idx_mode = (string) ( $settings['indexing_mode'] ?? 'frontend' ); ?>
+					<label style="display:block;margin:4px 0;">
+						<input type="radio" name="indexing_mode" value="frontend" <?php checked( $aicm_idx_mode, 'frontend' ); ?>>
+						<?php echo esc_html__( 'While the Indexing page is open (recommended)', 'ai-chatmate' ); ?>
+					</label>
+					<p class="description" style="margin:2px 0 10px 24px;">
+						<?php echo esc_html__( 'The Content Indexing page drives the queue itself, batch after batch. Works on every server — keep that tab open until it finishes.', 'ai-chatmate' ); ?>
+					</p>
+					<label style="display:block;margin:4px 0;">
+						<input type="radio" name="indexing_mode" value="background" <?php checked( $aicm_idx_mode, 'background' ); ?>>
+						<?php echo esc_html__( 'In the background (page can be closed)', 'ai-chatmate' ); ?>
+					</label>
+					<p class="description" style="margin:2px 0 0 24px;">
+						<?php echo esc_html__( 'The server keeps processing on its own using loopback requests, with WP-Cron as a safety net. If your host blocks loopback requests, progress may pause until the site gets a visit — switch back to the first option if it stalls.', 'ai-chatmate' ); ?>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">
+					<label for="aicm-batch-size"><?php echo esc_html__( 'Batch size', 'ai-chatmate' ); ?></label>
+				</th>
+				<td>
+					<input
+						type="number"
+						id="aicm-batch-size"
+						name="batch_size"
+						min="10"
+						max="200"
+						value="<?php echo esc_attr( (string) (int) ( $settings['batch_size'] ?? 50 ) ); ?>"
+						class="small-text"
+					>
+					<p class="description">
+						<?php echo esc_html__( 'Posts processed per batch (10–200). Higher is faster but uses more memory and longer requests per batch.', 'ai-chatmate' ); ?>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php echo esc_html__( 'Auto-sync', 'ai-chatmate' ); ?></th>
+				<td>
+					<label>
+						<input
+							type="checkbox"
+							name="auto_sync"
+							value="1"
+							<?php checked( ! empty( $settings['auto_sync'] ?? true ) ); ?>
+						>
+						<?php echo esc_html__( 'Automatically re-index posts when they are published, updated, or deleted', 'ai-chatmate' ); ?>
+					</label>
+					<p class="description">
+						<?php echo esc_html__( 'Keeps the index current without manual scans. Recommended: on.', 'ai-chatmate' ); ?>
+					</p>
+				</td>
+			</tr>
+		</table>
+		</div><!-- /indexing panel -->
+
+		<!-- ================================================================ -->
+		<!-- Section 6: Privacy / GDPR                                        -->
+		<!-- ================================================================ -->
+		<div class="aicm-tab-panel" data-tab="privacy">
 		<h2 class="title"><?php echo esc_html__( 'Privacy & GDPR', 'ai-chatmate' ); ?></h2>
 
 		<table class="form-table" role="presentation">
@@ -421,7 +608,35 @@ $logging         = ! empty( $settings['logging_enabled'] );
 				</td>
 			</tr>
 
+			<tr>
+				<th scope="row">
+					<?php echo esc_html__( 'Downloadable Chat Logs', 'ai-chatmate' ); ?>
+				</th>
+				<td>
+					<label for="aicm-file-logging">
+						<input
+							type="checkbox"
+							id="aicm-file-logging"
+							name="file_logging"
+							value="1"
+							<?php checked( ! empty( $settings['file_logging'] ?? false ) ); ?>
+						>
+						<?php echo esc_html__( 'Write each chat exchange to a downloadable daily log file', 'ai-chatmate' ); ?>
+					</label>
+					<p class="description">
+						<?php
+						echo esc_html__(
+							'Disabled by default. Logs are stored as one file per day in a protected, non-public folder inside wp-content/uploads (never in the plugin folder, so they survive plugin updates). Files older than 30 days are deleted automatically. Download them from the Analytics page. IP addresses are never logged.',
+							'ai-chatmate'
+						);
+						?>
+					</p>
+				</td>
+			</tr>
+
 		</table>
+
+		</div><!-- /privacy panel -->
 
 		<p class="submit">
 			<button type="submit" id="aicm-save-settings" class="button button-primary">
@@ -433,138 +648,3 @@ $logging         = ! empty( $settings['logging_enabled'] );
 	</form><!-- #aicm-settings-form -->
 
 </div><!-- .wrap -->
-
-<script>
-/**
- * Minimal inline settings form handler.
- *
- * We use inline JS here (rather than an enqueued file) because:
- *  1. This is the ONLY place this JS runs.
- *  2. Enqueueing a separate file for 50 lines of glue code is overkill.
- *  3. It keeps Phase 1 self-contained — no build step needed.
- *
- * All user-visible strings are already escaped above via PHP esc_html__().
- * aicmAdmin is set by wp_add_inline_script() in AICM_Admin::enqueue_assets().
- */
-( function () {
-	'use strict';
-
-	const form       = document.getElementById( 'aicm-settings-form' );
-	const saveBtn    = document.getElementById( 'aicm-save-settings' );
-	const saveStatus = document.getElementById( 'aicm-save-status' );
-	const notice     = document.getElementById( 'aicm-notice' );
-
-	if ( ! form || ! window.aicmAdmin ) {
-		return;
-	}
-
-	// -----------------------------------------------------------------
-	// Helper: show an admin notice banner.
-	// -----------------------------------------------------------------
-	function showNotice( message, type ) {
-		notice.className = 'notice notice-' + ( type || 'info' ) + ' inline';
-		notice.textContent = message;
-		notice.style.display = 'block';
-		notice.scrollIntoView( { behavior: 'smooth', block: 'nearest' } );
-	}
-
-	// -----------------------------------------------------------------
-	// Save settings via REST.
-	// -----------------------------------------------------------------
-	form.addEventListener( 'submit', function ( e ) {
-		e.preventDefault();
-
-		saveBtn.disabled  = true;
-		saveStatus.textContent = aicmAdmin.i18n.saving;
-
-		const data = {};
-		new FormData( form ).forEach( function ( value, key ) {
-			// Checkboxes: if present in FormData it is '1' (checked).
-			if ( key === 'logging_enabled' ) {
-				data[ key ] = true;
-			} else {
-				data[ key ] = value;
-			}
-		} );
-
-		// Checkboxes not in FormData are unchecked (false).
-		if ( ! ( 'logging_enabled' in data ) ) {
-			data.logging_enabled = false;
-		}
-
-		fetch( aicmAdmin.restUrl + '/settings', {
-			method:  'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-WP-Nonce':   aicmAdmin.nonce,
-			},
-			body: JSON.stringify( data ),
-		} )
-		.then( function ( res ) { return res.json(); } )
-		.then( function ( json ) {
-			if ( json.success ) {
-				saveStatus.textContent = aicmAdmin.i18n.saved;
-				showNotice( aicmAdmin.i18n.saved, 'success' );
-			} else {
-				saveStatus.textContent = aicmAdmin.i18n.error;
-				showNotice( json.message || aicmAdmin.i18n.error, 'error' );
-			}
-		} )
-		.catch( function () {
-			saveStatus.textContent = aicmAdmin.i18n.error;
-			showNotice( aicmAdmin.i18n.error, 'error' );
-		} )
-		.finally( function () {
-			saveBtn.disabled = false;
-		} );
-	} );
-
-	// -----------------------------------------------------------------
-	// Test connection button.
-	// -----------------------------------------------------------------
-	document.querySelectorAll( '.aicm-test-btn' ).forEach( function ( btn ) {
-		btn.addEventListener( 'click', function () {
-			const provider   = btn.dataset.provider;
-			const resultSpan = document.getElementById( 'aicm-test-' + provider + '-result' );
-
-			btn.disabled           = true;
-			resultSpan.textContent = aicmAdmin.i18n.testing;
-			resultSpan.className   = 'aicm-test-result';
-
-			fetch( aicmAdmin.restUrl + '/test-connection', {
-				method:  'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce':   aicmAdmin.nonce,
-				},
-				body: JSON.stringify( { provider: provider, api_key: '' } ),
-			} )
-			.then( function ( res ) { return res.json(); } )
-			.then( function ( json ) {
-				if ( json.success ) {
-					resultSpan.textContent = '✓ ' + json.message + ( json.model ? ' (' + json.model + ')' : '' );
-					resultSpan.className   = 'aicm-test-result aicm-test-ok';
-				} else {
-					resultSpan.textContent = '✗ ' + json.message;
-					resultSpan.className   = 'aicm-test-result aicm-test-fail';
-				}
-			} )
-			.catch( function () {
-				resultSpan.textContent = '✗ ' + aicmAdmin.i18n.error;
-				resultSpan.className   = 'aicm-test-result aicm-test-fail';
-			} )
-			.finally( function () {
-				btn.disabled = false;
-			} );
-		} );
-	} );
-
-} () );
-</script>
-
-<style>
-.aicm-save-status   { margin-left: 10px; font-style: italic; color: #555; }
-.aicm-test-result   { margin-left: 10px; font-weight: 600; }
-.aicm-test-ok       { color: #46b450; }
-.aicm-test-fail     { color: #dc3232; }
-</style>

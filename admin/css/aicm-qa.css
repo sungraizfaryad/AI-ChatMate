@@ -1,0 +1,4 @@
+/* Conciera — Q&A Manager page styles. */
+.aicm-badge-active   { background:#d7f0dd; color:#006505; padding:2px 8px; border-radius:3px; font-size:12px; white-space:nowrap; }
+.aicm-badge-inactive { background:#fce8e8; color:#8c1a1a; padding:2px 8px; border-radius:3px; font-size:12px; white-space:nowrap; }
+#aicm-qa-tbody td    { vertical-align:top; word-break:break-word; }

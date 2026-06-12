@@ -26,12 +26,12 @@ $last_generated = AICM_Schema_Cache::last_generated_at();
 ?>
 <div class="wrap" id="aicm-schema-page">
 
-	<h1><?php echo esc_html__( 'AI ChatMate — Schema', 'ai-chatmate' ); ?></h1>
+	<h1><?php echo esc_html__( 'Conciera — Schema', 'ai-chatmate' ); ?></h1>
 
 	<p class="description">
 		<?php
 		echo esc_html__(
-			'AI ChatMate automatically discovers your post types, taxonomies, and custom fields. This schema is used to build the AI\'s search capabilities. Rescan after adding new post types or custom fields.',
+			'Conciera automatically discovers your post types, taxonomies, and custom fields. This schema is used to build the AI\'s search capabilities. Rescan after adding new post types or custom fields.',
 			'ai-chatmate'
 		);
 		?>
@@ -228,86 +228,3 @@ $last_generated = AICM_Schema_Cache::last_generated_at();
 	<?php endif; ?>
 
 </div><!-- .wrap -->
-
-<script>
-( function () {
-	'use strict';
-
-	const btn    = document.getElementById( 'aicm-rescan-btn' );
-	const status = document.getElementById( 'aicm-rescan-status' );
-
-	if ( ! btn || ! window.aicmAdmin ) return;
-
-	btn.addEventListener( 'click', function () {
-		btn.disabled      = true;
-		status.textContent = '<?php echo esc_js( __( 'Scanning…', 'ai-chatmate' ) ); ?>';
-
-		fetch( aicmAdmin.restUrl + '/schema/rescan', {
-			method:  'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-WP-Nonce':   aicmAdmin.nonce,
-			},
-		} )
-		.then( function ( res ) { return res.json(); } )
-		.then( function ( json ) {
-			if ( json.success ) {
-				status.textContent = '<?php echo esc_js( __( 'Done! Reloading…', 'ai-chatmate' ) ); ?>';
-				setTimeout( function () { window.location.reload(); }, 800 );
-			} else {
-				status.textContent = json.message || '<?php echo esc_js( __( 'Error. Please try again.', 'ai-chatmate' ) ); ?>';
-				btn.disabled = false;
-			}
-		} )
-		.catch( function () {
-			status.textContent = '<?php echo esc_js( __( 'Network error. Please try again.', 'ai-chatmate' ) ); ?>';
-			btn.disabled = false;
-		} );
-	} );
-} () );
-</script>
-
-<style>
-/* Schema page styles — scoped to the schema page wrapper */
-#aicm-schema-page .aicm-schema-status-bar { margin: 16px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-
-#aicm-schema-page .aicm-badge {
-	display: inline-block; padding: 3px 8px; border-radius: 3px;
-	font-size: 12px; font-weight: 600; line-height: 1.4;
-}
-.aicm-badge-ok     { background: #d4edda; color: #155724; }
-.aicm-badge-warn   { background: #fff3cd; color: #856404; }
-.aicm-badge-plugin { background: #cce5ff; color: #004085; }
-.aicm-badge-search { background: #d1ecf1; color: #0c5460; }
-.aicm-badge-rag    { background: #e2d9f3; color: #4a1d96; }
-
-#aicm-schema-grid { display: flex; flex-direction: column; gap: 24px; margin-top: 20px; }
-
-.aicm-pt-card {
-	background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 16px 20px;
-	box-shadow: 0 1px 3px rgba(0,0,0,.06);
-}
-.aicm-pt-card-header {
-	display: flex; align-items: center; flex-wrap: wrap;
-	gap: 8px; margin-bottom: 12px;
-}
-.aicm-pt-card-header strong { font-size: 15px; }
-.aicm-pt-card-header code   { background: #f0f0f1; padding: 2px 6px; }
-.aicm-pt-count               { color: #666; font-size: 13px; }
-
-.aicm-pt-section       { margin-top: 14px; }
-.aicm-pt-section h4    { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; color: #666; letter-spacing: .5px; }
-.aicm-inner-table      { font-size: 13px; }
-.aicm-inner-table th   { font-weight: 600; }
-.aicm-no-fields        { color: #888; font-style: italic; margin: 8px 0 0; font-size: 13px; }
-
-.aicm-type-badge {
-	display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 700; text-transform: uppercase;
-}
-.aicm-type-numeric  { background: #d4edda; color: #155724; }
-.aicm-type-boolean  { background: #fff3cd; color: #856404; }
-.aicm-type-date     { background: #cce5ff; color: #004085; }
-.aicm-type-text     { background: #f0f0f1; color: #555; }
-
-.aicm-source-badge  { font-size: 12px; color: #888; font-style: italic; }
-</style>

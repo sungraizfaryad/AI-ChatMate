@@ -140,12 +140,14 @@
 		status.textContent = ( aicmAdmin.i18n && aicmAdmin.i18n.saving ) || 'Saving…';
 
 		var key = document.getElementById( 'aicm-wiz-key' ).value;
+		var ctx = document.getElementById( 'aicm-wiz-context' );
 		var settings = {
 			semantic_mode:  document.getElementById( 'aicm-wiz-semantic' ).checked,
 			widget_color:   document.getElementById( 'aicm-wiz-color' ).value,
 			widget_enabled: document.getElementById( 'aicm-wiz-enable' ).checked
 		};
 		if ( key ) { settings.api_key_openai = key; }
+		if ( ctx && ctx.value.trim() ) { settings.site_context = ctx.value.trim(); }
 
 		api( '/settings', 'POST', settings ).then( function () {
 			return api( '/onboarding/complete', 'POST', { index_post_types: state.types, config: buildConfig() } );

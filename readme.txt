@@ -1,4 +1,4 @@
-=== AI ChatMate ===
+=== Conciera - AI Site Search & Content Finder ===
 Contributors:      sungraizfaryad
 Tags:              ai, site-search, chatbot, openai, search
 Requires at least: 6.0
@@ -8,17 +8,17 @@ Requires PHP:      8.0
 License:           GPLv2 or later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 
-AI site assistant that turns visitor questions into a safe search of your own content. Bring your own OpenAI key.
+AI search chatbot that helps visitors find content on your website. Turns questions into a safe search of your own posts, pages, and products.
 
 == Description ==
 
-AI ChatMate is the only WordPress AI chatbot that combines **conversational search** with **knowledge Q&A** in one intelligent chat widget.
+Conciera is an AI-powered site search chatbot that helps your visitors find content on your website. When someone asks a question in plain language, Conciera searches your own posts, pages, products, and listings, then answers right in the chat — so visitors reach the right page without digging through menus. It combines **conversational search** with **knowledge Q&A** in one chat widget.
 
 **Mode 1 — Smart Search (for sites with listings)**
-A visitor says: "Find me apartments in Lisbon under €500K with 3 bedrooms" → AI ChatMate extracts the parameters, searches your WordPress database, and returns a filtered results page plus preview cards — all inside the chat.
+A visitor says: "Find me apartments in Lisbon under €500K with 3 bedrooms" → Conciera extracts the parameters, searches your WordPress database, and returns a filtered results page plus preview cards — all inside the chat.
 
 **Mode 2 — Knowledge Q&A (for all sites)**
-A visitor says: "What is your return policy?" → AI ChatMate searches your indexed content and answers the question with source citations.
+A visitor says: "What is your return policy?" → Conciera searches your indexed content and answers the question with source citations.
 
 **The AI automatically picks the right mode** based on what the visitor is asking.
 
@@ -53,10 +53,10 @@ A visitor says: "What is your return policy?" → AI ChatMate searches your inde
 
 1. Upload the `ai-chatmate` folder to `/wp-content/plugins/`
 2. Activate the plugin in **Plugins → Installed Plugins**
-3. Go to **AI ChatMate → Settings**
+3. Go to **Conciera → Settings**
 4. Enter your OpenAI API key and click **Save Settings**
 5. Click **Test Connection** to confirm your key is working
-6. Go to **AI ChatMate → Content Indexing** and click **Start Indexing**
+6. Go to **Conciera → Content Indexing** and click **Start Indexing**
 7. Add the chat widget with the shortcode `[ai_chatmate]` or enable the floating widget (appears automatically in the footer on every page)
 
 == Frequently Asked Questions ==

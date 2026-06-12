@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name: AI ChatMate
+ * Plugin Name: Conciera - AI Site Search & Content Finder
  * Plugin URI:  https://wordpress.org/plugins/ai-chatmate/
- * Description: AI site assistant that turns natural-language questions into a safe search of your own WordPress content: posts, listings, and products by type, taxonomy, and custom field. Uses your OpenAI API key.
+ * Description: Conciera is an AI search chatbot that helps your visitors find content on your website. It turns plain-language questions into a safe search of your own posts, pages, products, and listings, then answers right in a chat widget. Uses your OpenAI API key.
  * Version:     2.0.0
  * Requires at least: 6.0
  * Requires PHP: 8.0
@@ -89,7 +89,7 @@ if ( ! aicm_requirements_met() ) {
 					sprintf(
 						/* translators: 1: Required PHP version, 2: Required WP version */
 						__(
-							'<strong>AI ChatMate</strong> requires PHP %1$s and WordPress %2$s or higher. Please upgrade your environment.',
+							'<strong>Conciera</strong> requires PHP %1$s and WordPress %2$s or higher. Please upgrade your environment.',
 							'ai-chatmate'
 						),
 						esc_html( AICM_REQUIRED_PHP ),
@@ -182,6 +182,8 @@ final class AI_ChatMate {
 		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-query-builder.php';
 		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-qa-manager.php';
 		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-conversation-handler.php';
+		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-chat-log.php';
+		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-leads.php';
 
 		// REST API (always needed — REST is active on all requests).
 		require_once AICM_PLUGIN_DIR . 'includes/class-aicm-rest-api.php';
@@ -225,6 +227,12 @@ final class AI_ChatMate {
 		add_action( 'aicm_weekly_schema_scan', array( $this, 'run_weekly_schema_scan' ) );
 		add_action( 'aicm_process_index_queue', array( $this, 'process_index_queue' ) );
 
+		// Background-mode indexing loopback endpoint. Both hooks are required:
+		// loopback requests carry no cookies, so they always arrive
+		// unauthenticated (nopriv); the secret-key check happens inside.
+		add_action( 'wp_ajax_aicm_async_index', array( 'AICM_Index_Manager', 'handle_async_request' ) );
+		add_action( 'wp_ajax_nopriv_aicm_async_index', array( 'AICM_Index_Manager', 'handle_async_request' ) );
+
 		// Post lifecycle hooks — auto-sync must fire on every request type
 		// (admin, frontend, REST, WP-Cron) since post saves can happen anywhere.
 		AICM_Auto_Sync::init();
@@ -240,7 +248,7 @@ final class AI_ChatMate {
 		if ( ! isset( $schedules['aicm_five_minutes'] ) ) {
 			$schedules['aicm_five_minutes'] = array(
 				'interval' => 5 * MINUTE_IN_SECONDS,
-				'display'  => __( 'Every 5 minutes (AI ChatMate)', 'ai-chatmate' ),
+				'display'  => __( 'Every 5 minutes (Conciera)', 'ai-chatmate' ),
 			);
 		}
 		return $schedules;

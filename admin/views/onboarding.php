@@ -26,7 +26,7 @@ $aicm_steps = array(
 );
 ?>
 <div class="wrap" id="aicm-wizard">
-	<h1><?php echo esc_html__( 'AI ChatMate — Setup', 'ai-chatmate' ); ?></h1>
+	<h1><?php echo esc_html__( 'Conciera — Setup', 'ai-chatmate' ); ?></h1>
 
 	<ol class="aicm-wizard-steps" aria-hidden="true">
 		<?php foreach ( $aicm_steps as $aicm_i => $aicm_label ) : ?>
@@ -109,6 +109,13 @@ $aicm_steps = array(
 	<section class="aicm-panel" data-panel="5">
 		<h2><?php echo esc_html__( 'Place the chat widget', 'ai-chatmate' ); ?></h2>
 		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><label for="aicm-wiz-context"><?php echo esc_html__( 'About this website (optional)', 'ai-chatmate' ); ?></label></th>
+				<td>
+					<textarea id="aicm-wiz-context" class="large-text" rows="4" maxlength="2000" placeholder="<?php echo esc_attr__( 'e.g. We are a luxury real-estate agency selling villas and apartments in Portugal and Spain. Visitors usually search by location, budget, bedrooms, and property type.', 'ai-chatmate' ); ?>"></textarea>
+					<p class="description"><?php echo esc_html__( 'Tell the assistant what this website is about and what visitors usually look for — it uses this to give better answers and ask smarter follow-up questions. You can edit it later in Settings → AI Behaviour.', 'ai-chatmate' ); ?></p>
+				</td>
+			</tr>
 			<tr>
 				<th scope="row"><?php echo esc_html__( 'Show widget', 'ai-chatmate' ); ?></th>
 				<td><label><input type="checkbox" id="aicm-wiz-enable"> <?php echo esc_html__( 'Show the floating chat button on the site', 'ai-chatmate' ); ?></label></td>

@@ -1,0 +1,11 @@
+/* Conciera — Settings page styles. */
+
+/* Tabs: one panel visible at a time. */
+.aicm-tab-panel            { display: none; }
+.aicm-tab-panel.is-active  { display: block; }
+.aicm-tabs                 { margin-bottom: 0; }
+
+.aicm-save-status   { margin-left: 10px; font-style: italic; color: #555; }
+.aicm-test-result   { margin-left: 10px; font-weight: 600; }
+.aicm-test-ok       { color: #46b450; }
+.aicm-test-fail     { color: #dc3232; }
