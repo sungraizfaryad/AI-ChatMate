@@ -90,6 +90,77 @@ class AICM_Frontend {
 		return (bool) AI_ChatMate::get_setting( 'widget_enabled', false );
 	}
 
+	/**
+	 * Whether the assistant is actually able to answer right now.
+	 *
+	 * The widget is only rendered when it can deliver: an API key must be
+	 * configured for the active provider, and — if the optional Semantic Q&A
+	 * mode is enabled — the content index must contain at least one chunk.
+	 * Until then the widget is hidden entirely, so visitors are never shown
+	 * a chat that can only apologise.
+	 *
+	 * Structured search (the default mode) queries WordPress directly and
+	 * does NOT require the index, so sites that leave Semantic Q&A off get
+	 * the widget as soon as an API key is saved.
+	 *
+	 * Public because the /chat REST permission callback applies the same
+	 * gate server-side (the widget being hidden is not a security boundary).
+	 *
+	 * @return bool
+	 */
+	public static function is_ready(): bool {
+		return self::status()['ready'];
+	}
+
+	/**
+	 * Full widget visibility status, for admin-facing messaging.
+	 *
+	 * Single source of truth for "will the widget appear on the frontend,
+	 * and if not — why". Used by the settings and indexing admin pages so
+	 * the site owner always knows why the widget is (not) showing.
+	 *
+	 * @return array{enabled: bool, ready: bool, reason: string}
+	 *               reason is '' when ready, otherwise 'no_key' or 'index_empty'.
+	 */
+	public static function status(): array {
+		$enabled = (bool) AI_ChatMate::get_setting( 'widget_enabled', false );
+		$ready   = true;
+		$reason  = '';
+
+		$index = (array) get_option( 'aicm_index_status', array() );
+
+		// Has any indexing run ever been started on this site?
+		$index_started = ! empty( $index['is_running'] )
+			|| (int) ( $index['pending'] ?? 0 ) > 0
+			|| (int) ( $index['total_chunks'] ?? 0 ) > 0;
+
+		// An API key for the active provider is always required.
+		$active = (string) AI_ChatMate::get_setting( 'active_provider', 'openai' );
+		if ( '' === (string) get_option( "aicm_api_key_{$active}", '' ) ) {
+			$ready  = false;
+			$reason = 'no_key';
+		} elseif ( $index_started && empty( $index['initial_complete'] ) ) {
+			// The FIRST indexing run must finish before the widget goes live —
+			// a half-built index gives visitors half-baked answers. Sites that
+			// never start indexing (structured search only) are not affected,
+			// and later re-indexes do not re-hide the widget.
+			$ready  = false;
+			$reason = 'indexing';
+		} elseif ( (bool) AI_ChatMate::get_setting( 'semantic_mode', false ) ) {
+			// Semantic Q&A needs embeddings — require a non-empty index.
+			if ( (int) ( $index['total_chunks'] ?? 0 ) < 1 ) {
+				$ready  = false;
+				$reason = 'index_empty';
+			}
+		}
+
+		return array(
+			'enabled' => $enabled,
+			'ready'   => $ready,
+			'reason'  => $reason,
+		);
+	}
+
 	// ── Hooks ─────────────────────────────────────────────────────────────────
 
 	/**
@@ -98,17 +169,24 @@ class AICM_Frontend {
 	 * Callback for the `wp_enqueue_scripts` action.
 	 */
 	public function enqueue_assets(): void {
-		// Opt-in gate: do nothing unless the admin enabled the widget.
-		if ( ! self::is_enabled() ) {
+		// Opt-in gate: do nothing unless the admin enabled the widget
+		// AND the assistant is actually ready to answer (key + index state).
+		if ( ! self::is_enabled() || ! self::is_ready() ) {
 			return;
 		}
+
+		// Cache-bust on file change, not just on plugin release — browsers
+		// hold widget assets aggressively and a stale script silently drops
+		// newer features (chips, history) for returning visitors.
+		$css_ver = (string) ( @filemtime( AICM_PLUGIN_DIR . 'public/css/aicm-widget.css' ) ?: AICM_VERSION ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- filemtime may warn on exotic filesystems; version fallback handles it.
+		$js_ver  = (string) ( @filemtime( AICM_PLUGIN_DIR . 'public/js/aicm-widget.js' ) ?: AICM_VERSION ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- same fallback as above.
 
 		// ── Stylesheet ────────────────────────────────────────────────────
 		wp_enqueue_style(
 			'aicm-widget',
 			AICM_PLUGIN_URL . 'public/css/aicm-widget.css',
 			array(),
-			AICM_VERSION
+			$css_ver
 		);
 
 		// ── Brand colour + position overrides (inline, appended to sheet) ─
@@ -138,7 +216,7 @@ class AICM_Frontend {
 			'aicm-widget',
 			AICM_PLUGIN_URL . 'public/js/aicm-widget.js',
 			array(),       // No dependencies — vanilla JS.
-			AICM_VERSION,
+			$js_ver,
 			true      // Load in footer (after DOM is ready).
 		);
 
@@ -151,12 +229,24 @@ class AICM_Frontend {
 				'restUrl'        => esc_url_raw( rest_url( 'aicm/v1' ) ),
 				// Nonce for the aicm_chat_nonce action (chat endpoint).
 				'nonce'          => wp_create_nonce( 'aicm_chat_nonce' ),
+				// Standard REST nonce (action 'wp_rest'), sent as X-WP-Nonce.
+				// Without it, WordPress treats the request as logged-out (uid 0)
+				// even for logged-in users — and the aicm_chat_nonce above was
+				// minted for the logged-in uid, so verification would always
+				// fail for logged-in visitors ("Security check failed").
+				'restNonce'      => wp_create_nonce( 'wp_rest' ),
 				// Site name shown in the widget header.
 				'siteName'       => get_bloginfo( 'name' ),
 				// First message displayed when the widget is opened (optional).
 				'welcomeMessage' => (string) AI_ChatMate::get_setting( 'welcome_message', '' ),
 				// Input placeholder — localised so it can be translated.
 				'placeholder'    => __( 'Ask a question…', 'ai-chatmate' ),
+				// Strings used by the chat-history UI.
+				'i18n'           => array(
+					'newConversation' => __( 'New conversation', 'ai-chatmate' ),
+					'noHistory'       => __( 'No previous conversations yet.', 'ai-chatmate' ),
+					'current'         => __( 'Current', 'ai-chatmate' ),
+				),
 			)
 		);
 	}
@@ -171,14 +261,15 @@ class AICM_Frontend {
 	 * Callback for the `wp_footer` action.
 	 */
 	public function render_widget(): void {
-		// Opt-in gate: render nothing unless the admin enabled the widget.
-		if ( ! self::is_enabled() ) {
+		// Opt-in gate: render nothing unless the admin enabled the widget
+		// AND the assistant is actually ready to answer (key + index state).
+		if ( ! self::is_enabled() || ! self::is_ready() ) {
 			return;
 		}
 
 		$site_name = get_bloginfo( 'name' );
 		?>
-		<!-- AI ChatMate widget — start -->
+		<!-- Conciera widget — start -->
 		<button
 			type="button"
 			id="aicm-launcher"
@@ -209,6 +300,38 @@ class AICM_Frontend {
 				</span>
 				<button
 					type="button"
+					class="aicm-widget__hbtn"
+					id="aicm-history-btn"
+					aria-label="<?php esc_attr_e( 'Previous chats', 'ai-chatmate' ); ?>"
+					aria-expanded="false"
+					aria-controls="aicm-history"
+					title="<?php esc_attr_e( 'Previous chats', 'ai-chatmate' ); ?>"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+						viewBox="0 0 24 24" fill="none" stroke="currentColor"
+						stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+						aria-hidden="true" focusable="false">
+						<circle cx="12" cy="12" r="10"/>
+						<polyline points="12 6 12 12 16 14"/>
+					</svg>
+				</button>
+				<button
+					type="button"
+					class="aicm-widget__hbtn"
+					id="aicm-newchat-btn"
+					aria-label="<?php esc_attr_e( 'Start a new chat', 'ai-chatmate' ); ?>"
+					title="<?php esc_attr_e( 'Start a new chat', 'ai-chatmate' ); ?>"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+						viewBox="0 0 24 24" fill="none" stroke="currentColor"
+						stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+						aria-hidden="true" focusable="false">
+						<line x1="12" y1="5" x2="12" y2="19"/>
+						<line x1="5" y1="12" x2="19" y2="12"/>
+					</svg>
+				</button>
+				<button
+					type="button"
 					class="aicm-widget__close"
 					aria-label="<?php esc_attr_e( 'Close chat', 'ai-chatmate' ); ?>"
 				>
@@ -229,6 +352,18 @@ class AICM_Frontend {
 				aria-live="polite"
 				aria-relevant="additions"
 			></div>
+
+			<div
+				class="aicm-widget__history"
+				id="aicm-history"
+				role="region"
+				aria-label="<?php esc_attr_e( 'Previous chats', 'ai-chatmate' ); ?>"
+			>
+				<div class="aicm-widget__history-head">
+					<?php esc_html_e( 'Previous chats', 'ai-chatmate' ); ?>
+				</div>
+				<ul id="aicm-history-list" class="aicm-widget__history-list"></ul>
+			</div>
 
 			<div class="aicm-widget__footer">
 				<textarea
@@ -254,7 +389,7 @@ class AICM_Frontend {
 				</button>
 			</div>
 		</div>
-		<!-- AI ChatMate widget — end -->
+		<!-- Conciera widget — end -->
 		<?php
 	}
 
