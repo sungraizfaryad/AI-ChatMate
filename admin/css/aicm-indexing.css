@@ -1,0 +1,99 @@
+/* Conciera — Content Indexing page styles. */
+
+/* Option groups (scan scope / processing mode) */
+#aicm-indexing-page .aicm-option-group {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 14px 18px 10px;
+	margin: 0 0 16px;
+	max-width: 720px;
+}
+#aicm-indexing-page .aicm-option-group legend {
+	padding: 0 6px;
+	font-size: 13px;
+}
+#aicm-indexing-page .aicm-option-group .description {
+	color: #646970;
+	font-size: 12.5px;
+}
+
+/* Live activity log */
+#aicm-indexing-page .aicm-activity-panel {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	margin: 20px 0 0;
+	max-width: 720px;
+	overflow: hidden;
+}
+#aicm-indexing-page .aicm-activity-title {
+	font-size: 14px;
+	margin: 0;
+	padding: 12px 18px;
+	border-bottom: 1px solid #f0f0f1;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+#aicm-indexing-page .aicm-activity-live {
+	background: #00a32a;
+	color: #fff;
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .8px;
+	padding: 2px 8px;
+	border-radius: 10px;
+}
+#aicm-indexing-page .aicm-activity-list {
+	margin: 0;
+	padding: 6px 0;
+	max-height: 320px;
+	overflow-y: auto;
+	list-style: none;
+}
+#aicm-indexing-page .aicm-activity-list li {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	padding: 6px 18px;
+	margin: 0;
+	font-size: 13px;
+	border-bottom: 1px solid #f6f7f7;
+	animation: aicm-fade-in .25s ease-out;
+}
+#aicm-indexing-page .aicm-activity-list li:last-child {
+	border-bottom: none;
+}
+@keyframes aicm-fade-in {
+	from { opacity: 0; transform: translateY(-3px); }
+	to   { opacity: 1; transform: none; }
+}
+#aicm-indexing-page .aicm-act-type {
+	flex: 0 0 auto;
+	min-width: 72px;
+	text-align: center;
+	background: #f0f0f1;
+	color: #50575e;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .4px;
+	padding: 2px 8px;
+	border-radius: 3px;
+}
+#aicm-indexing-page .aicm-act-title {
+	flex: 1 1 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: #1d2327;
+}
+#aicm-indexing-page .aicm-act-status {
+	flex: 0 0 auto;
+	font-size: 12px;
+	font-weight: 600;
+}
+#aicm-indexing-page .aicm-act-ok   .aicm-act-status { color: #00a32a; }
+#aicm-indexing-page .aicm-act-fail .aicm-act-status { color: #d63638; }
