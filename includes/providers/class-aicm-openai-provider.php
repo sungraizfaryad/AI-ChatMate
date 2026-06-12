@@ -126,14 +126,24 @@ class AICM_OpenAI_Provider implements AICM_LLM_Provider {
 
 		// Add tool/function definitions when provided.
 		if ( ! empty( $functions ) ) {
-			$body['tools']       = array_map(
+			$body['tools'] = array_map(
 				static fn( array $fn ): array => array(
 					'type'     => 'function',
 					'function' => $fn,
 				),
 				$functions
 			);
-			$body['tool_choice'] = 'auto';
+
+			// A caller may force one specific tool (options['tool_choice'] =
+			// function name) — used to guarantee quick-reply chips on
+			// zero-result turns, where 'auto' models tend to write text lists.
+			$forced              = (string) ( $options['tool_choice'] ?? '' );
+			$body['tool_choice'] = '' !== $forced
+				? array(
+					'type'     => 'function',
+					'function' => array( 'name' => $forced ),
+				)
+				: 'auto';
 		}
 
 		$response = $this->post( self::ENDPOINT_CHAT, $body, 60 );

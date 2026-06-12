@@ -105,7 +105,7 @@ class AICM_Conversation_Handler {
 		if ( null === $provider ) {
 			return self::error_response(
 				$session_id,
-				__( 'AI ChatMate is not configured. Please add an API key in the admin settings.', 'ai-chatmate' )
+				__( 'Conciera is not configured. Please add an API key in the admin settings.', 'ai-chatmate' )
 			);
 		}
 
@@ -182,11 +182,31 @@ class AICM_Conversation_Handler {
 		);
 
 		// ── Steps 6–7: function call branch ──────────────────────────────
+		$reply   = '';
+		$options = array();
+
 		if ( ! empty( $result['function_call'] ) ) {
-			$fn_name   = (string) ( $result['function_call']['name'] ?? '' );
-			$fn_args   = json_decode( (string) ( $result['function_call']['arguments'] ?? '{}' ), true );
-			$fn_args   = is_array( $fn_args ) ? $fn_args : array();
-			$fn_result = self::execute_function( $fn_name, $fn_args );
+			$fn_name = (string) ( $result['function_call']['name'] ?? '' );
+			$fn_args = json_decode( (string) ( $result['function_call']['arguments'] ?? '{}' ), true );
+			$fn_args = is_array( $fn_args ) ? $fn_args : array();
+
+			// suggest_choices short-circuits: the model's question plus the
+			// tappable chips ARE the reply — no second model round needed.
+			// A malformed call (no question / fewer than 2 choices) falls
+			// through to the normal path so the visitor still gets an answer.
+			if ( 'suggest_choices' === $fn_name ) {
+				$question = self::sanitize_choice_question( (string) ( $fn_args['question'] ?? '' ) );
+				$choices  = self::sanitize_choices( (array) ( $fn_args['choices'] ?? array() ) );
+
+				if ( '' !== $question && count( $choices ) >= 2 ) {
+					$reply   = $question;
+					$options = $choices;
+				}
+			}
+		}
+
+		if ( '' === $reply && ! empty( $result['function_call'] ) ) {
+			$fn_result = self::execute_function( $fn_name, $fn_args, $session_id );
 
 			// Merge WP_Query result post IDs into the sources list.
 			if ( ! empty( $fn_result['post_ids'] ) ) {
@@ -205,12 +225,56 @@ class AICM_Conversation_Handler {
 				$fn_result
 			);
 
-			$result2     = $provider->chat_completion( $messages_r2, array(), array( 'max_tokens' => 1024 ) );
-			$total_usage = self::merge_usage( $total_usage, $result2['usage'] ?? array() );
-			$reply       = (string) ( $result2['content'] ?? '' );
+			// Round 2 gets ONLY suggest_choices — after seeing the search
+			// result (especially zero results) the model must still be able
+			// to offer chips, but must not chain another search.
+			$chips_only  = array_values(
+				array_filter(
+					$functions,
+					static fn( array $f ): bool => 'suggest_choices' === ( $f['name'] ?? '' )
+				)
+			);
 
-		} else {
+			// Zero-result searches MUST come back as chips — 'auto' models
+			// reliably ignore the instruction and write text lists instead,
+			// so force the tool for that one case.
+			$round2_opts = array( 'max_tokens' => 1024 );
+			if ( 'search_posts' === $fn_name && 0 === (int) ( $fn_result['found'] ?? -1 ) && ! empty( $chips_only ) ) {
+				$round2_opts['tool_choice'] = 'suggest_choices';
+			}
+
+			$result2     = $provider->chat_completion( $messages_r2, $chips_only, $round2_opts );
+			$total_usage = self::merge_usage( $total_usage, $result2['usage'] ?? array() );
+
+			if ( ! empty( $result2['function_call'] ) && 'suggest_choices' === (string) ( $result2['function_call']['name'] ?? '' ) ) {
+				$args2    = json_decode( (string) ( $result2['function_call']['arguments'] ?? '{}' ), true );
+				$args2    = is_array( $args2 ) ? $args2 : array();
+				$question = self::sanitize_choice_question( (string) ( $args2['question'] ?? '' ) );
+				$choices  = self::sanitize_choices( (array) ( $args2['choices'] ?? array() ) );
+
+				if ( '' !== $question && count( $choices ) >= 2 ) {
+					$reply   = $question;
+					$options = $choices;
+				}
+			}
+
+			if ( '' === $reply ) {
+				$reply = (string) ( $result2['content'] ?? '' );
+			}
+		} elseif ( '' === $reply ) {
 			$reply = (string) ( $result['content'] ?? '' );
+		}
+
+		// Safety net: if the model wrote a short choice list as text bullets
+		// anyway (ignoring the suggest_choices instruction), convert it to
+		// chips deterministically so the visitor can always tap.
+		if ( empty( $options ) ) {
+			$extracted = self::extract_text_choices( $reply );
+
+			if ( ! empty( $extracted['options'] ) ) {
+				$reply   = $extracted['reply'];
+				$options = $extracted['options'];
+			}
 		}
 
 		// ── Fallback when the model returns an empty string ───────────────
@@ -225,7 +289,9 @@ class AICM_Conversation_Handler {
 		);
 		$history[] = array(
 			'role'    => 'assistant',
-			'content' => $reply,
+			// Record the chips alongside the question so the model remembers
+			// what it offered when the visitor taps one next turn.
+			'content' => $reply . ( $options ? "\n[Choices shown: " . implode( ' | ', $options ) . ']' : '' ),
 		);
 		$history   = self::trim_history_to_budget( $history, $token_cap );
 		self::save_history( $session_id, $history );
@@ -238,9 +304,112 @@ class AICM_Conversation_Handler {
 			'reply'      => $reply,
 			'session_id' => $session_id,
 			'sources'    => $source_ids,
+			'options'    => $options,
 			'error'      => null,
 			'usage'      => $total_usage,
 		);
+	}
+
+	/**
+	 * Convert a text reply that is really a choice list into chips.
+	 *
+	 * Models sometimes write "You can choose:\n- Morning\n- Afternoon"
+	 * despite being told to call suggest_choices. This deterministic parser
+	 * rescues ONLY that narrow shape — a short questioning text plus 2–6
+	 * bullet lines that look like tappable labels — and leaves everything
+	 * else untouched. Deliberately strict to avoid converting informational
+	 * bullet answers into fake buttons:
+	 *  - every bullet must be ≤ 40 chars AND ≤ 5 words
+	 *  - the non-bullet text must be short (≤ 250 chars) and contain a '?'
+	 *
+	 * @param string $reply Raw model reply.
+	 * @return array{reply: string, options: array<int, string>}
+	 */
+	public static function extract_text_choices( string $reply ): array {
+		$none  = array(
+			'reply'   => $reply,
+			'options' => array(),
+		);
+		$lines = preg_split( '/\r\n|\r|\n/', $reply );
+
+		if ( false === $lines ) {
+			return $none;
+		}
+
+		$labels = array();
+		$rest   = array();
+
+		foreach ( $lines as $line ) {
+			if ( preg_match( '/^\s*(?:[-*•]|\d+[.)])\s+(.+?)\s*$/u', $line, $m ) ) {
+				// Strip markdown bold/italic wrappers from the label.
+				$label = trim( preg_replace( '/\*{1,2}([^*]+)\*{1,2}/u', '$1', $m[1] ) );
+
+				if ( '' === $label || mb_strlen( $label ) > 40 || count( preg_split( '/\s+/u', $label ) ) > 5 ) {
+					return $none; // One non-label-like bullet → informational list, keep as text.
+				}
+
+				$labels[] = $label;
+			} elseif ( '' !== trim( $line ) ) {
+				$rest[] = trim( $line );
+			}
+		}
+
+		$question = implode( ' ', $rest );
+
+		if ( count( $labels ) < 2 || count( $labels ) > 6
+			|| '' === $question || mb_strlen( $question ) > 250
+			|| false === mb_strpos( $question, '?' ) ) {
+			return $none;
+		}
+
+		return array(
+			'reply'   => $question,
+			'options' => self::sanitize_choices( $labels ),
+		);
+	}
+
+	/**
+	 * Sanitise the question shown above quick-reply chips.
+	 *
+	 * @param string $question Raw question from the model.
+	 * @return string Plain text, at most 300 characters.
+	 */
+	public static function sanitize_choice_question( string $question ): string {
+		return mb_substr( trim( wp_strip_all_tags( $question ) ), 0, 300 );
+	}
+
+	/**
+	 * Sanitise quick-reply chip labels from the model.
+	 *
+	 * Strings only, tags stripped, 40-char labels, de-duplicated, capped at
+	 * six — whatever the model sends, the client never receives more than a
+	 * short tappable list.
+	 *
+	 * @param array $choices Raw choices array from the model.
+	 * @return array<int, string>
+	 */
+	public static function sanitize_choices( array $choices ): array {
+		$out = array();
+
+		foreach ( $choices as $choice ) {
+			if ( ! is_string( $choice ) && ! is_numeric( $choice ) ) {
+				continue;
+			}
+
+			$label = mb_substr( trim( wp_strip_all_tags( (string) $choice ) ), 0, 40 );
+
+			if ( '' === $label || in_array( $label, $out, true ) ) {
+				continue;
+			}
+
+			$out[] = $label;
+
+			if ( count( $out ) >= 6 ) {
+				break;
+			}
+		}
+
+		return $out;
 	}
 
 	// ── Private: provider ─────────────────────────────────────────────────────
@@ -375,6 +544,24 @@ class AICM_Conversation_Handler {
 		$prompt  = "You are an AI assistant for **{$site_name}**. {$personality_text}\n\n";
 		$prompt .= "Your role is to help visitors find information, products, listings, and other content on this website.\n\n";
 
+		// Ground the model in what this site actually IS: the tagline plus the
+		// owner-written description from settings. This is how the assistant
+		// "knows" it is a property site vs a blog vs a clinic, and adapts its
+		// questions and tone accordingly.
+		$tagline      = trim( (string) get_bloginfo( 'description' ) );
+		$site_context = trim( (string) AI_ChatMate::get_setting( 'site_context', '' ) );
+
+		if ( '' !== $tagline || '' !== $site_context ) {
+			$prompt .= "## About this website\n\n";
+			if ( '' !== $tagline ) {
+				$prompt .= "Tagline: {$tagline}\n";
+			}
+			if ( '' !== $site_context ) {
+				$prompt .= "Owner's description: {$site_context}\n";
+			}
+			$prompt .= "\nUse this to understand what kind of website this is and what visitors are usually looking for. Adapt your questions and suggestions to this context.\n\n";
+		}
+
 		// Inject the discovered content structure so the model emits valid
 		// post types, taxonomy slugs, and meta keys instead of guessing.
 		$schema  = AICM_Schema_Cache::get();
@@ -392,7 +579,7 @@ class AICM_Conversation_Handler {
 			$prompt .= "## Relevant content retrieved from this website\n\n";
 			$prompt .= $rag_context . "\n\n";
 			$prompt .= "Use the content above to answer the user's question when it is relevant. "
-				. 'Cite the source title and link when referencing specific content. '
+				. 'Mention the source by its title only — never paste its URL; the interface links it automatically. '
 				. 'If the retrieved content does not fully answer the question, you may call '
 				. "the `search_posts` function to look for more specific results.\n\n";
 		} else {
@@ -402,9 +589,58 @@ class AICM_Conversation_Handler {
 				. "listings, or products.\n\n";
 		}
 
-		$prompt .= "Always be accurate. Only state facts supported by the website's content. "
-			. 'If you cannot find relevant information after searching, say so honestly '
-			. 'and suggest how the visitor might find what they need.';
+		$prompt .= "## Search behaviour rules\n\n"
+			. "1. KEEP THE CONVERSATION'S FILTERS. When the visitor refines a search (\"under 4 million instead\"), "
+			. "re-apply every still-relevant filter from earlier turns (location, type, bedrooms, …) — only change what they changed. "
+			. "When they ask a follow-up like \"what do you have available?\", keep the location and other context from the conversation.\n"
+			. "2. Numeric filters: convert spoken amounts to plain numbers before calling search_posts "
+			. "(\"two million\" → 2000000). Use <= for \"under/below/up to\", >= for \"at least/minimum\".\n"
+			. "3. NEVER give up after one empty search. A zero-result search_posts response includes a zero_results_help "
+			. "object: relaxed_filters shows how many items match when each single filter is removed, and "
+			. "available_alternatives lists the real terms that exist. Use it. First tell the visitor honestly that "
+			. "nothing matched ALL their criteria, then offer the closest real option — e.g. \"nothing under €2M with "
+			. "3 bathrooms, but 27 properties match if the budget can stretch\". NEVER present a relaxed result as if "
+			. "it matched the original request; always name the requirement that would need to change.\n"
+			. "4. GUIDED SEARCH. If the visitor's request is vague, or nothing close exists, offer to narrow it down: "
+			. "\"May I ask a couple of quick questions to find the best match?\" Then ask exactly ONE question per "
+			. "message, in this order of usefulness: location/category first, then budget/price range, then type, "
+			. "then size details (bedrooms, etc.) — adapting the questions to what kind of website this is. Every "
+			. "option you offer must come from the real taxonomy terms and data above or from zero_results_help — "
+			. "never invent options. Stop asking as soon as you have enough to search. "
+		. 'Ask each guided question via suggest_choices, with chips drawn from the real data above '
+		. "(plus \"Other\" / \"No preference\" where sensible) — never as a plain-text list.\n\n";
+
+		// Lead capture choreography — only taught to the model when enabled.
+		if ( class_exists( 'AICM_Leads' ) && AICM_Leads::is_enabled() ) {
+			$prompt .= "## Callback requests\n\n"
+				. 'If you genuinely cannot help — nothing suitable exists even after relaxing filters, or the visitor '
+				. 'asks to speak to a person — offer the ways forward via suggest_choices, e.g. question '
+				. '"I couldn\'t find a match — how would you like to continue?" with chips like '
+				. '"Adjust my search" and "Request a callback". If they pick the callback, collect ONE detail per message: '
+				. "ask for their email in plain text (required); then phone via suggest_choices framing — ask for the "
+				. 'number in the question and offer a "Skip" chip; then preferred time via suggest_choices with chips '
+				. 'like "Morning", "Afternoon", "Evening", "Any time". '
+				. 'Then call capture_lead with what they gave you plus a one-sentence topic summary of what they wanted. '
+				. 'If capture_lead reports an invalid email, politely ask them to re-check it. After success, confirm '
+				. 'warmly in one sentence. Offer a callback at most ONCE per conversation — never be pushy, '
+				. "and never call capture_lead without an explicit email from the visitor.\n\n";
+		}
+
+		$prompt .= "Always be accurate. Only state facts supported by the website's content.\n\n"
+			. '## Reply formatting rules' . "\n\n"
+			. "Visitors scan, they do not read. Hard rules:\n"
+			. "1. Maximum 2 short sentences per reply. For factual answers you may instead use up to 4 bullet "
+			. "points of at most 8 words each, with the key fact in **bold**.\n"
+			. '2. NEVER paste URLs or markdown links into your reply text. The chat interface automatically shows '
+			. "a clickable button for every result you found, so links in the text are redundant and look broken.\n"
+			. '3. NEVER list or describe search results in your text — the buttons below your message already show '
+			. 'every title. Say only how many you found and what to do next, e.g. '
+			. "\"I found **5 villas** in Mauritius under 2M — tap one below to view it.\"\n"
+			. '4. Whenever the natural next step is a CHOICE (pick a location, adjust the search, accept a callback, '
+			. 'pick a time, skip an optional step), you MUST call the suggest_choices function. Writing the options '
+			. 'as a text list or bullet points instead of calling suggest_choices is a FAILURE — the visitor must be '
+			. 'able to TAP an option, never retype it. '
+			. 'Only values that genuinely need typing — an email address or a phone number — are asked as plain text.';
 
 		return $prompt;
 	}
@@ -600,7 +836,7 @@ class AICM_Conversation_Handler {
 		$tax_hint  = '' !== $hints['taxonomy_hint'] ? " Available taxonomies and example term slugs by post type — {$hints['taxonomy_hint']}." : '';
 		$meta_hint = '' !== $hints['meta_hint'] ? " Available meta keys by post type — {$hints['meta_hint']}." : '';
 
-		return array(
+		$functions = array(
 			array(
 				'name'        => 'search_posts',
 				'description' => 'Search published content on this WordPress website. '
@@ -654,7 +890,7 @@ class AICM_Conversation_Handler {
 									),
 									'value'   => array(
 										'type'        => 'string',
-										'description' => 'Value to compare against.',
+										'description' => 'Value to compare against. For numeric comparisons ALWAYS send a plain number with no currency symbols, separators, or words — e.g. "2000000", never "2 million" or "€2,000,000".',
 									),
 									'compare' => array(
 										'type' => 'string',
@@ -694,6 +930,71 @@ class AICM_Conversation_Handler {
 				),
 			),
 		);
+
+		// Quick-reply chips — the visitor taps instead of typing.
+		$functions[] = array(
+			'name'        => 'suggest_choices',
+			'description' => 'Show the visitor a short question with tappable answer chips instead of free text. '
+				. 'Use whenever the natural next step is a SELECTION: offering ways forward after no results, '
+				. 'asking a guided-search question (location, budget, type, size), or optional steps the visitor '
+				. 'may skip. The question and chips ARE your whole reply for this turn — do not call this together '
+				. 'with other output.',
+			'parameters'  => array(
+				'type'       => 'object',
+				'properties' => array(
+					'question' => array(
+						'type'        => 'string',
+						'description' => 'One short, friendly question (a single sentence).',
+					),
+					'choices'  => array(
+						'type'        => 'array',
+						'items'       => array( 'type' => 'string' ),
+						'minItems'    => 2,
+						'maxItems'    => 6,
+						'description' => 'Two to six short labels (max ~5 words each), drawn from REAL site data when offering search options. Include "Skip" when the step is optional.',
+					),
+				),
+				'required'   => array( 'question', 'choices' ),
+			),
+		);
+
+		// Lead capture — only offered to the model when the admin enabled it.
+		if ( class_exists( 'AICM_Leads' ) && AICM_Leads::is_enabled() ) {
+			$functions[] = array(
+				'name'        => 'capture_lead',
+				'description' => 'Record a callback request from the visitor and notify the site team by email. '
+					. 'Call this ONLY after the visitor has explicitly agreed to be contacted AND has provided '
+					. 'their email address. Never invent or guess contact details.',
+				'parameters'  => array(
+					'type'       => 'object',
+					'properties' => array(
+						'email'          => array(
+							'type'        => 'string',
+							'description' => 'The visitor\'s email address, exactly as they typed it. REQUIRED.',
+						),
+						'name'           => array(
+							'type'        => 'string',
+							'description' => 'The visitor\'s name, if they shared it.',
+						),
+						'phone'          => array(
+							'type'        => 'string',
+							'description' => 'The visitor\'s phone number, if they shared it.',
+						),
+						'preferred_time' => array(
+							'type'        => 'string',
+							'description' => 'When the visitor prefers to be contacted, in their own words (e.g. "tomorrow afternoon", "Friday after 5pm").',
+						),
+						'topic'          => array(
+							'type'        => 'string',
+							'description' => 'One-sentence summary of what the visitor was looking for, so the team can prepare.',
+						),
+					),
+					'required'   => array( 'email' ),
+				),
+			);
+		}
+
+		return $functions;
 	}
 
 	/**
@@ -703,14 +1004,21 @@ class AICM_Conversation_Handler {
 	 * Unknown function names return a structured error the AI can interpret
 	 * gracefully (it will tell the user it could not complete the search).
 	 *
-	 * @param string $fn_name Name of the function the AI requested.
-	 * @param array  $fn_args JSON-decoded arguments.
+	 * @param string $fn_name    Name of the function the AI requested.
+	 * @param array  $fn_args    JSON-decoded arguments.
+	 * @param string $session_id Current chat session (for lead-capture guards).
 	 * @return array Result payload for injection as the tool response message.
 	 */
-	private static function execute_function( string $fn_name, array $fn_args ): array {
+	private static function execute_function( string $fn_name, array $fn_args, string $session_id = '' ): array {
 		if ( 'search_posts' === $fn_name ) {
 			$query_args = AICM_Query_Builder::build( $fn_args );
 			return AICM_Query_Builder::execute( $query_args );
+		}
+
+		if ( 'capture_lead' === $fn_name ) {
+			// All validation, rate limits, and the actual email happen in
+			// AICM_Leads — the model only structures the data.
+			return AICM_Leads::capture( $fn_args, $session_id );
 		}
 
 		return array(

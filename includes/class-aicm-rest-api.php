@@ -159,6 +159,17 @@ class AICM_REST_API {
 			)
 		);
 
+		// Admin: synchronously process one queue batch (manual indexing driver).
+		register_rest_route(
+			self::NAMESPACE,
+			'/index/process',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'process_indexing' ),
+				'permission_callback' => array( $this, 'admin_permission_check' ),
+			)
+		);
+
 		// Admin: get schema.
 		register_rest_route(
 			self::NAMESPACE,
@@ -340,6 +351,19 @@ class AICM_REST_API {
 			);
 		}
 
+		// Readiness gate: same condition that hides the widget (API key saved,
+		// and a non-empty index when Semantic Q&A is enabled). Enforced here
+		// too so direct REST calls cannot spend budget while setup is
+		// incomplete. Guarded with class_exists because the frontend class is
+		// only loaded on non-admin requests.
+		if ( class_exists( 'AICM_Frontend' ) && ! AICM_Frontend::is_ready() ) {
+			return new WP_Error(
+				'aicm_not_ready',
+				__( 'The chat assistant is still being set up. Please try again later.', 'ai-chatmate' ),
+				array( 'status' => 503 )
+			);
+		}
+
 		// Verify the nonce that the chat widget JS sends with every request.
 		$nonce = sanitize_text_field( wp_unslash( $request->get_header( 'X-AICM-Nonce' ) ?? '' ) );
 
@@ -509,6 +533,10 @@ class AICM_REST_API {
 			'widget_color'      => '#0073aa',
 			'welcome_message'   => '',
 			'results_display'   => 'plugin_page',
+			'indexing_mode'     => 'frontend',
+			'site_context'      => '',
+			'lead_capture'      => false,
+			'lead_email'        => '',
 		);
 
 		$allowed_providers   = array( 'openai', 'anthropic', 'google' );
@@ -586,8 +614,35 @@ class AICM_REST_API {
 		if ( isset( $params['logging_enabled'] ) ) {
 			$updated['logging_enabled'] = (bool) $params['logging_enabled'];
 		}
+		if ( isset( $params['file_logging'] ) ) {
+			$updated['file_logging'] = (bool) $params['file_logging'];
+		}
+		if ( isset( $params['lead_capture'] ) ) {
+			$updated['lead_capture'] = (bool) $params['lead_capture'];
+		}
+		if ( isset( $params['lead_email'] ) ) {
+			$lead_email              = sanitize_email( (string) $params['lead_email'] );
+			$updated['lead_email']   = is_email( $lead_email ) ? $lead_email : '';
+		}
 		if ( isset( $params['semantic_mode'] ) ) {
 			$updated['semantic_mode'] = (bool) $params['semantic_mode'];
+		}
+
+		if ( isset( $params['indexing_mode'] ) ) {
+			$mode                     = sanitize_key( (string) $params['indexing_mode'] );
+			$updated['indexing_mode'] = in_array( $mode, array( 'frontend', 'background' ), true )
+				? $mode
+				: 'frontend';
+		}
+
+		if ( isset( $params['site_context'] ) ) {
+			// Owner-written description of the site, injected into the AI's
+			// system prompt. Capped so it cannot blow up the token budget.
+			$updated['site_context'] = mb_substr(
+				sanitize_textarea_field( (string) $params['site_context'] ),
+				0,
+				2000
+			);
 		}
 		if ( isset( $params['widget_enabled'] ) ) {
 			$updated['widget_enabled'] = (bool) $params['widget_enabled'];
@@ -677,6 +732,11 @@ class AICM_REST_API {
 
 		$result = AICM_Conversation_Handler::handle( $message, $session_id );
 
+		// Optional file-based usage log (Settings → Privacy; off by default).
+		// Use the RESOLVED session id from the response — the request id is
+		// empty on a conversation's first message and would split the thread.
+		AICM_Chat_Log::record( (string) ( $result['session_id'] ?? $session_id ), $message, $result );
+
 		// Resolve source post IDs into title + URL objects for the frontend.
 		$sources = array();
 		foreach ( (array) ( $result['sources'] ?? array() ) as $post_id ) {
@@ -695,6 +755,7 @@ class AICM_REST_API {
 				'reply'         => $result['reply'],
 				'session_id'    => $result['session_id'],
 				'sources'       => $sources,
+				'options'       => array_values( array_map( 'strval', (array) ( $result['options'] ?? array() ) ) ),
 				'preview_cards' => null,
 				'results_url'   => null,
 			),
@@ -711,12 +772,18 @@ class AICM_REST_API {
 		$status = get_option(
 			'aicm_index_status',
 			array(
-				'total_chunks' => 0,
-				'pending'      => 0,
-				'is_running'   => false,
-				'last_indexed' => null,
+				'total_chunks'  => 0,
+				'indexed_posts' => 0,
+				'pending'       => 0,
+				'is_running'    => false,
+				'last_indexed'  => null,
 			)
 		);
+
+		// Rolling log of recently processed items (newest first) so the admin
+		// UI can show which posts are being indexed right now.
+		$status['activity'] = AICM_Index_Manager::get_activity();
+		$status['mode']     = (string) AI_ChatMate::get_setting( 'indexing_mode', 'frontend' );
 
 		return new WP_REST_Response( $status, 200 );
 	}
@@ -733,11 +800,34 @@ class AICM_REST_API {
 	 *
 	 * @return WP_REST_Response
 	 */
-	public function start_indexing(): WP_REST_Response {
-		$queued = AICM_Index_Manager::enqueue_full_reindex();
+	public function start_indexing( WP_REST_Request $request ): WP_REST_Response {
+		// Scan scope: 'new' (default) skips posts already in the index;
+		// 'all' rebuilds everything. Edited posts are re-queued by auto-sync
+		// on save, so 'new' is the cheap, correct routine choice.
+		$scope    = sanitize_key( (string) ( $request->get_param( 'scope' ) ?? 'new' ) );
+		$only_new = ( 'all' !== $scope );
 
-		if ( 0 === $queued ) {
-			$message = __( 'All posts are already queued. Indexing is in progress.', 'ai-chatmate' );
+		$queued = AICM_Index_Manager::enqueue_full_reindex( $only_new );
+
+		// Pending may exceed $queued: rows can already be waiting from an
+		// earlier run (e.g. the admin closed the tab mid-index). Work exists
+		// whenever pending > 0, regardless of how many rows THIS call added.
+		$index_status = (array) get_option( 'aicm_index_status', array() );
+		$pending      = (int) ( $index_status['pending'] ?? 0 );
+
+		// Background mode: kick off the self-driving loopback chain so the
+		// queue processes without the admin tab staying open.
+		$mode = (string) AI_ChatMate::get_setting( 'indexing_mode', 'frontend' );
+		if ( 'background' === $mode && $pending > 0 ) {
+			AICM_Index_Manager::dispatch_async();
+		}
+
+		if ( 0 === $queued && 0 === $pending ) {
+			$message = $only_new
+				? __( 'Nothing new to index — all published content is already in the index.', 'ai-chatmate' )
+				: __( 'Nothing to index — no published content found for the configured post types.', 'ai-chatmate' );
+		} elseif ( 0 === $queued ) {
+			$message = __( 'Resuming — earlier queued content is still waiting to be processed.', 'ai-chatmate' );
 		} else {
 			$message = sprintf(
 				/* translators: %d: number of posts added to the indexing queue */
@@ -756,6 +846,8 @@ class AICM_REST_API {
 				'success' => true,
 				'message' => $message,
 				'queued'  => $queued,
+				'pending' => $pending,
+				'mode'    => $mode,
 			),
 			200
 		);
@@ -787,6 +879,61 @@ class AICM_REST_API {
 		update_option( 'aicm_index_status', $status );
 
 		return new WP_REST_Response( array( 'success' => true ), 200 );
+	}
+
+	/**
+	 * POST /index/process
+	 *
+	 * Synchronously processes ONE batch of the indexing queue and returns the
+	 * fresh status. This is the manual indexing driver: the admin Indexing
+	 * page calls it in a loop after "Start Indexing", so a full index
+	 * completes while the admin tab is open — with no dependency on WP-Cron,
+	 * which on low-traffic or local sites only fires when someone visits.
+	 *
+	 * Safety properties (all inherited from process_queue_batch):
+	 *  - admin-only (manage_options + REST nonce, enforced by the route)
+	 *  - one batch per request, time-boxed to ~25 s — never trips PHP
+	 *    max_execution_time, and each HTTP request stays short
+	 *  - a transient lock prevents overlap with a concurrent cron run; if the
+	 *    lock is held this call is simply a no-op and reports current status
+	 *  - batch size respects the admin's batch_size setting (hard-capped at 50)
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function process_indexing(): WP_REST_Response {
+		AICM_Index_Manager::process_queue_batch();
+
+		$status = get_option(
+			'aicm_index_status',
+			array(
+				'total_chunks'  => 0,
+				'indexed_posts' => 0,
+				'pending'       => 0,
+				'is_running'    => false,
+				'last_indexed'  => null,
+			)
+		);
+
+		// Background mode: this endpoint doubles as the STALL RECOVERY kick.
+		// The loopback chain is sequential, so one failed link kills it; when
+		// the admin page detects no progress it POSTs here — we process a
+		// batch synchronously (above) and re-arm the chain (below). The
+		// transient lock inside process_queue_batch makes double-arming safe.
+		$mode = (string) AI_ChatMate::get_setting( 'indexing_mode', 'frontend' );
+		if ( 'background' === $mode && (int) ( $status['pending'] ?? 0 ) > 0 ) {
+			AICM_Index_Manager::dispatch_async();
+		}
+
+		$status['activity'] = AICM_Index_Manager::get_activity();
+		$status['mode']     = $mode;
+
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'status'  => $status,
+			),
+			200
+		);
 	}
 
 	/**
