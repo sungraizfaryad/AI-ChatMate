@@ -216,10 +216,20 @@ class AICM_Query_Builder {
 					continue;
 				}
 
-				$key     = sanitize_key( (string) ( $filter['key'] ?? '' ) );
-				$compare = strtoupper( sanitize_text_field( (string) ( $filter['compare'] ?? '=' ) ) );
+				$key = sanitize_key( (string) ( $filter['key'] ?? '' ) );
 
-				if ( '' === $key ) {
+				// IMPORTANT: do NOT pass the operator through sanitize_text_field()
+				// — it strips '<' as a partial HTML tag, silently turning '<=' into
+				// '=' so every "under X" search became "exactly X". The whitelist
+				// below IS the sanitiser: anything not on it collapses to '='.
+				$compare = strtoupper( trim( (string) ( $filter['compare'] ?? '=' ) ) );
+
+				// Reject empty keys and protected meta (underscore-prefixed,
+				// e.g. _edit_lock, plugin internals). The schema only ever
+				// advertises public keys to the AI, but the /chat endpoint is
+				// public — without this, a crafted conversation could probe
+				// hidden meta via EXISTS / range comparisons.
+				if ( '' === $key || str_starts_with( $key, '_' ) ) {
 					continue;
 				}
 
@@ -234,17 +244,28 @@ class AICM_Query_Builder {
 
 				// EXISTS and NOT EXISTS queries do not take a value.
 				if ( ! in_array( $compare, array( 'EXISTS', 'NOT EXISTS' ), true ) ) {
-					$value                = sanitize_text_field(
+					$value = sanitize_text_field(
 						wp_unslash( (string) ( $filter['value'] ?? '' ) )
 					);
+
+					$is_range = in_array( $compare, array( '<', '<=', '>', '>=' ), true );
+
+					// For range comparisons, normalise human-style numbers the AI
+					// may pass through from the visitor ("2 million", "€1,500,000",
+					// "950k") into plain numerics — otherwise MySQL falls back to
+					// string comparison and the filter is meaningless.
+					if ( $is_range && ! is_numeric( $value ) ) {
+						$normalised = self::normalize_numeric( $value );
+						if ( null !== $normalised ) {
+							$value = $normalised;
+						}
+					}
+
 					$meta_clause['value'] = $value;
 
 					// Use NUMERIC type for numeric comparators with numeric values —
 					// this allows MySQL to compare numbers correctly (e.g. 500 > 99).
-					if (
-						in_array( $compare, array( '<', '<=', '>', '>=' ), true )
-						&& is_numeric( $value )
-					) {
+					if ( $is_range && is_numeric( $value ) ) {
 						$meta_clause['type'] = 'NUMERIC';
 					}
 				}
@@ -259,6 +280,63 @@ class AICM_Query_Builder {
 		}
 
 		return $query_args;
+	}
+
+	/**
+	 * Normalise a human-style number into a plain numeric string.
+	 *
+	 * Visitors say "2 million", "€1,500,000", "950k", "1.5M" — and the AI may
+	 * pass those through verbatim. MySQL cannot range-compare them, so we
+	 * convert: strip currency symbols, thousands separators and whitespace,
+	 * then apply k / m(illion) / b(illion) multipliers.
+	 *
+	 * @param string $value Raw value from the AI function call.
+	 * @return string|null Numeric string, or null if it cannot be parsed.
+	 */
+	private static function normalize_numeric( string $value ): ?string {
+		$v = strtolower( trim( $value ) );
+
+		// Strip currency symbols/codes and spaces.
+		$v = (string) preg_replace( '/(usd|eur|gbp|[$€£])/', '', $v );
+		$v = (string) str_replace( ' ', '', $v );
+
+		// Commas: a trailing ",dd" (1–2 digits) is a European DECIMAL comma
+		// ("1,5 million" means 1.5, not 15) — convert it to a dot. All other
+		// commas are thousands separators ("1,500,000") — remove them.
+		if ( preg_match( '/,\d{1,2}$/', preg_replace( '/(thousand|million|billion|k|m|b)$/', '', $v ) ) ) {
+			$v = str_replace( ',', '.', $v );
+		} else {
+			$v = str_replace( ',', '', $v );
+		}
+
+		if ( ! preg_match( '/^([0-9]*\.?[0-9]+)(thousand|million|billion|k|m|b)?$/', $v, $match ) ) {
+			return null;
+		}
+
+		$number     = (float) $match[1];
+		$multiplier = 1;
+
+		switch ( $match[2] ?? '' ) {
+			case 'k':
+			case 'thousand':
+				$multiplier = 1000;
+				break;
+			case 'm':
+			case 'million':
+				$multiplier = 1000000;
+				break;
+			case 'b':
+			case 'billion':
+				$multiplier = 1000000000;
+				break;
+		}
+
+		$result = $number * $multiplier;
+
+		// Integers stay integers ("2 million" → "2000000", not "2000000.0").
+		return ( $result === floor( $result ) )
+			? (string) (int) $result
+			: (string) $result;
 	}
 
 	/**
@@ -296,11 +374,20 @@ class AICM_Query_Builder {
 		$query = new WP_Query( $query_args );
 
 		if ( empty( $query->posts ) ) {
-			return array(
+			$result = array(
 				'found'    => 0,
 				'posts'    => array(),
 				'post_ids' => array(),
 			);
+
+			// Zero results with filters applied: tell the AI what DOES exist
+			// nearby so it can guide the visitor instead of dead-ending.
+			$help = self::zero_results_help( $query_args );
+			if ( ! empty( $help ) ) {
+				$result['zero_results_help'] = $help;
+			}
+
+			return $result;
 		}
 
 		$simplified = array();
@@ -334,5 +421,156 @@ class AICM_Query_Builder {
 			'posts'    => $simplified,
 			'post_ids' => $post_ids,
 		);
+	}
+
+	// ── Zero-result guidance ─────────────────────────────────────────────────
+
+	/**
+	 * Maximum number of relax-probe COUNT queries per zero-result search.
+	 * Keeps the worst case bounded regardless of how many filters the AI sent.
+	 */
+	private const MAX_RELAX_PROBES = 5;
+
+	/**
+	 * Build "what exists nearby" data for a search that matched nothing.
+	 *
+	 * For each applied filter (meta clause, taxonomy clause, keyword), runs ONE
+	 * cheap count query with that single filter removed, and collects the real
+	 * terms available in each filtered taxonomy. The AI uses this to guide the
+	 * visitor with facts ("nothing under 2M with 3 baths, but 27 exist up to
+	 * 2.5M") instead of a dead-end apology.
+	 *
+	 * FALSE-POSITIVE SAFETY: this data is returned in a SEPARATE structure with
+	 * an explicit instruction — relaxed counts are never merged into 'posts',
+	 * so the model cannot mistake near-misses for actual matches.
+	 *
+	 * @param array $query_args The exact WP_Query args that returned nothing.
+	 * @return array Empty when no filters were applied (nothing to relax).
+	 */
+	private static function zero_results_help( array $query_args ): array {
+		$relaxed = array();
+		$probes  = 0;
+
+		// ── One probe per meta clause ──────────────────────────────────────
+		$meta_clauses = array();
+		foreach ( (array) ( $query_args['meta_query'] ?? array() ) as $idx => $clause ) {
+			if ( 'relation' !== $idx && is_array( $clause ) ) {
+				$meta_clauses[ $idx ] = $clause;
+			}
+		}
+
+		foreach ( $meta_clauses as $idx => $clause ) {
+			if ( $probes >= self::MAX_RELAX_PROBES ) {
+				break;
+			}
+			++$probes;
+
+			$variant = $query_args;
+			unset( $variant['meta_query'][ $idx ] );
+			if ( count( $variant['meta_query'] ) <= 1 ) {
+				unset( $variant['meta_query'] ); // Only 'relation' left.
+			}
+
+			$relaxed[] = array(
+				'removed_filter' => trim(
+					( $clause['key'] ?? '' ) . ' ' . ( $clause['compare'] ?? '=' ) . ' ' . ( $clause['value'] ?? '' )
+				),
+				'matches'        => self::count_matches( $variant ),
+			);
+		}
+
+		// ── One probe per taxonomy clause + the real terms available ──────
+		$alternatives = array();
+
+		$tax_clauses = array();
+		foreach ( (array) ( $query_args['tax_query'] ?? array() ) as $idx => $clause ) {
+			if ( 'relation' !== $idx && is_array( $clause ) ) {
+				$tax_clauses[ $idx ] = $clause;
+			}
+		}
+
+		foreach ( $tax_clauses as $idx => $clause ) {
+			$taxonomy = (string) ( $clause['taxonomy'] ?? '' );
+
+			if ( $probes < self::MAX_RELAX_PROBES ) {
+				++$probes;
+
+				$variant = $query_args;
+				unset( $variant['tax_query'][ $idx ] );
+				if ( count( $variant['tax_query'] ) <= 1 ) {
+					unset( $variant['tax_query'] );
+				}
+
+				$terms     = $clause['terms'] ?? '';
+				$relaxed[] = array(
+					'removed_filter' => trim( $taxonomy . ' = ' . ( is_array( $terms ) ? implode( ',', $terms ) : (string) $terms ) ),
+					'matches'        => self::count_matches( $variant ),
+				);
+			}
+
+			// Real sibling terms (by post count) the visitor could pick instead.
+			if ( '' !== $taxonomy && taxonomy_exists( $taxonomy ) ) {
+				$siblings = get_terms(
+					array(
+						'taxonomy'   => $taxonomy,
+						'number'     => 8,
+						'orderby'    => 'count',
+						'order'      => 'DESC',
+						'hide_empty' => true,
+					)
+				);
+
+				if ( is_array( $siblings ) && ! empty( $siblings ) ) {
+					$alternatives[ $taxonomy ] = array_map(
+						static fn( $t ) => $t->name . ' (' . (int) $t->count . ')',
+						$siblings
+					);
+				}
+			}
+		}
+
+		// ── One probe without the keyword search ───────────────────────────
+		if ( '' !== (string) ( $query_args['s'] ?? '' ) && $probes < self::MAX_RELAX_PROBES ) {
+			$variant = $query_args;
+			unset( $variant['s'] );
+
+			$relaxed[] = array(
+				'removed_filter' => 'keyword "' . (string) $query_args['s'] . '"',
+				'matches'        => self::count_matches( $variant ),
+			);
+		}
+
+		if ( empty( $relaxed ) && empty( $alternatives ) ) {
+			return array(); // No filters were applied — nothing useful to say.
+		}
+
+		return array(
+			'instruction'            => 'No content matched ALL the requested filters at once. '
+				. 'Each entry in relaxed_filters shows how many items match when that ONE filter is removed. '
+				. 'NEVER present these as matching the original request. Tell the visitor honestly that nothing '
+				. 'matched everything, then use these counts and available_alternatives to suggest the closest '
+				. 'real options or ask ONE clarifying question. Always say explicitly which requirement would '
+				. 'need to change.',
+			'relaxed_filters'        => $relaxed,
+			'available_alternatives' => $alternatives,
+		);
+	}
+
+	/**
+	 * Exact match count for a WP_Query args variant, as cheaply as possible.
+	 *
+	 * @param array $query_args WP_Query args.
+	 * @return int
+	 */
+	private static function count_matches( array $query_args ): int {
+		$query_args['fields']                 = 'ids';
+		$query_args['posts_per_page']         = 1;
+		$query_args['no_found_rows']          = false;
+		$query_args['update_post_meta_cache'] = false;
+		$query_args['update_post_term_cache'] = false;
+
+		$query = new WP_Query( $query_args );
+
+		return (int) $query->found_posts;
 	}
 }
