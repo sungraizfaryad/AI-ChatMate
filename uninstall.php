@@ -67,6 +67,9 @@ function aicm_uninstall_single_site(): void {
 		'aicm_monthly_usage',
 		'aicm_field_config',
 		'aicm_onboarded',
+		'aicm_daily_usage',
+		'aicm_index_activity',
+		'aicm_process_key',
 	);
 
 	foreach ( $options as $option ) {
@@ -102,6 +105,15 @@ function aicm_uninstall_single_site(): void {
 	}
 
 	// -----------------------------------------------------------------
+	// 4b. Delete this site's file-based chat logs (uploads directory).
+	// Runs per site so multisite sub-site logs are removed too —
+	// wp_upload_dir() is blog-aware inside switch_to_blog().
+	// -----------------------------------------------------------------
+	if ( class_exists( 'AICM_Chat_Log' ) ) {
+		AICM_Chat_Log::delete_all();
+	}
+
+	// -----------------------------------------------------------------
 	// 5. Delete any post meta written by this plugin.
 	// (None in Phase 1, but the placeholder keeps uninstall complete
 	// for future phases that may add post meta.)
@@ -111,6 +123,16 @@ function aicm_uninstall_single_site(): void {
 		"DELETE FROM {$wpdb->postmeta}
 		WHERE meta_key LIKE '_aicm_%'"
 	);
+}
+
+// -----------------------------------------------------------------
+// Load the chat-log class so each (sub-)site's log directory can be
+// removed inside aicm_uninstall_single_site(). delete_all() only needs
+// WordPress core — the plugin's own bootstrap is intentionally NOT
+// loaded during uninstall.
+// -----------------------------------------------------------------
+if ( file_exists( __DIR__ . '/includes/class-aicm-chat-log.php' ) ) {
+	require_once __DIR__ . '/includes/class-aicm-chat-log.php';
 }
 
 // -----------------------------------------------------------------

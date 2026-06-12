@@ -125,7 +125,7 @@ if ( $logging_enabled ) {
 ?>
 <div class="wrap" id="aicm-analytics-page">
 
-	<h1><?php echo esc_html__( 'AI ChatMate — Analytics', 'ai-chatmate' ); ?></h1>
+	<h1><?php echo esc_html__( 'Conciera — Analytics', 'ai-chatmate' ); ?></h1>
 
 	<?php if ( $over_budget ) : ?>
 		<div class="notice notice-error inline" style="margin-bottom:20px;">
@@ -371,5 +371,48 @@ if ( $logging_enabled ) {
 	<p>
 		<code style="font-size:14px;padding:4px 10px;background:#f0f0f1;border-radius:3px;">[ai_chatmate]</code>
 	</p>
+
+	<!-- ── Downloadable chat logs ─────────────────────────────────────────── -->
+	<h2 style="margin-top:30px;">
+		<?php echo esc_html__( 'Chat Log Files', 'ai-chatmate' ); ?>
+	</h2>
+
+	<?php $aicm_log_files = AICM_Chat_Log::list_files(); ?>
+
+	<?php if ( ! AICM_Chat_Log::is_enabled() && empty( $aicm_log_files ) ) : ?>
+		<p class="description">
+			<?php echo esc_html__( 'File logging is disabled. Enable "Downloadable Chat Logs" in Settings → Privacy to record each chat exchange to a downloadable daily file.', 'ai-chatmate' ); ?>
+		</p>
+	<?php elseif ( empty( $aicm_log_files ) ) : ?>
+		<p class="description">
+			<?php echo esc_html__( 'No log files yet — they appear here after the first logged conversation.', 'ai-chatmate' ); ?>
+		</p>
+	<?php else : ?>
+		<table class="widefat striped" style="max-width:560px;">
+			<thead>
+				<tr>
+					<th><?php echo esc_html__( 'Day', 'ai-chatmate' ); ?></th>
+					<th><?php echo esc_html__( 'Size', 'ai-chatmate' ); ?></th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $aicm_log_files as $aicm_log ) : ?>
+					<tr>
+						<td><?php echo esc_html( str_replace( '.jsonl', '', $aicm_log['file'] ) ); ?></td>
+						<td><?php echo esc_html( size_format( $aicm_log['size'] ) ); ?></td>
+						<td>
+							<a class="button button-small" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=aicm_download_log&file=' . rawurlencode( $aicm_log['file'] ) ), 'aicm_download_log' ) ); ?>">
+								<?php echo esc_html__( 'Download', 'ai-chatmate' ); ?>
+							</a>
+						</td>
+					</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<p class="description">
+			<?php echo esc_html__( 'One JSON line per chat exchange. Files older than 30 days are removed automatically.', 'ai-chatmate' ); ?>
+		</p>
+	<?php endif; ?>
 
 </div><!-- .wrap -->
